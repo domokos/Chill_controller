@@ -16,8 +16,8 @@
 #define FALSE 0
 
 // Speed of the crystal
-//#define CRYSTAL_SPEED_LO // 11.0592MHz
-#define CRYSTAL_SPEED_HI // 22.1184MHz
+#define CRYSTAL_SPEED_LO // 11.0592MHz
+//#define CRYSTAL_SPEED_HI // 22.1184MHz
 
 typedef __bit bool;
 
@@ -30,20 +30,14 @@ typedef __bit bool;
 #define DELAY_TIMEOUT 2
 
 #ifdef __CDT_PARSER__
-  #define TEMP_CONV_TIMER 3
-  #define PWM1_TIMER 4
-  #define UNSEEN_COMM_TIMER 3
-#elif defined MASTER_DEVICE
-  #define UNSEEN_COMM_TIMER 3
-#elif defined SLAVE_DEVICE
-  #define TEMP_CONV_TIMER 3
-  #define PWM1_TIMER 4
+  #define TEMP_CONV_TIMER 1
+  #define PWM_TIMER 2
+#elif defined CHILL_CONTROLLER
+  #define TEMP_CONV_TIMER 1
+  #define PWM_TIMER 2
 #else
   #error "Unknown device type for setting timer constants"
 #endif
-
-// Watchdog pin
-#define WATCHDOG_PIN P3_5
 
 /*
  * Internal utility functions
@@ -58,7 +52,6 @@ ISR(TIMER0,0);
 
 // Initiaize the timer
 void init_timer(void);
-
 
 // Wait for seconds
 void delay_sec(unsigned int sec);

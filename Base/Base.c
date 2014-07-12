@@ -9,7 +9,8 @@
 
 // Global variables
 bool timer_initialized = FALSE;
-static volatile unsigned int  time_counter;
+static volatile unsigned int  ms_time_counter, sec_counter;
+static volatile unsigned char  sec_counter_helper;
 
 static unsigned int timer_start_times[5];
 
@@ -22,15 +23,31 @@ static unsigned int timer_start_times[5];
 ISR(TIMER0,0)
 {
   // Increase timer
-  time_counter++;
-
-  // Keep watchdog happy
-  WATCHDOG_PIN = !WATCHDOG_PIN;
+  ms_time_counter++;
+  sec_counter_helper++;
+  if(sec_counter_helper == 100)
+    {
+      sec_counter_helper = 0;
+      sec_counter++;
+    } else {
+      __asm
+      nop
+      nop
+      nop
+      nop
+      nop
+      nop
+      nop
+      nop
+      nop
+      nop
+      __endasm;
+    }
 
   // Restart the timer
   TR0  = 0;
 
-// use 17 machine cycles less to compensate for time
+// use 34 machine cycles less to compensate for time
 // spent executing the ISR itself
 
 #ifdef  CRYSTAL_SPEED_LO
@@ -66,6 +83,7 @@ void init_timer(void)
   TMOD = (TMOD&0xF0)|0x01;    // Set Timer 0 16-bit mode
   TR0  = 1;       // Start Timer 0
   ET0  = 1;      // Enable Timer0 interrupt
+  sec_counter_helper = 0;
   timer_initialized = TRUE;
 }
 
@@ -113,7 +131,7 @@ void reset_timeout(unsigned char type)
   // Initialize timer if it is not initialized
   if(!timer_initialized) init_timer();
 
-  timer_start_times[type] = time_counter;
+  timer_start_times[type] = ms_time_counter;
 }
 
 // Get the time elapsed since reset
@@ -123,7 +141,7 @@ unsigned int get_time_elapsed(unsigned char type)
 
   // Get the time counter value
   ET0  = 0;
-  counter = time_counter;
+  counter = ms_time_counter;
   ET0  = 1;
 
   // If there is no owerflow in the interrupt ticks

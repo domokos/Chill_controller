@@ -27,6 +27,9 @@
 								<option id="sdcc.c.compiler.category.other.iramsize.1486485361" name="Check internal ram usage (--iram-size)" superClass="sdcc.c.compiler.category.other.iramsize" value="128" valueType="string"/>
 								<option id="sdcc.c.compiler.category.other.xramsize.351234611" name="Check external ram usage (--xram-size)" superClass="sdcc.c.compiler.category.other.xramsize" value="0" valueType="string"/>
 								<option id="sdcc.c.compiler.category.other.codesize.54519262" name="Check code memory usage (--code-size)" superClass="sdcc.c.compiler.category.other.codesize" value="4096" valueType="string"/>
+								<option id="sdcc.c.compiler.option.preprocessor.def.symbols.636394875" superClass="sdcc.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="CHILL_CONTROLLER"/>
+								</option>
 								<inputType id="cdt.managedbuild.tool.sdcc.c.compiler.input.211965430" superClass="cdt.managedbuild.tool.sdcc.c.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.sdcc.c.linker.exe.release.201451883" name="SDCC Linker" superClass="cdt.managedbuild.tool.sdcc.c.linker.exe.release">
@@ -96,4 +99,5 @@
 			<resource resourceType="PROJECT" workspacePath="/Chill_controller"/>
 		</configuration>
 	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 </cproject>
