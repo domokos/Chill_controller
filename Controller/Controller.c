@@ -7,10 +7,15 @@
 
 #include "Base.h"
 #include "Onewire.h"
+#include "uiBase.h"
 
 #define NR_OF_TEMP_SENSORS 2
 #define NR_OF_OW_BUSES 2
 #define PWM_PIN P1_2
+
+// Define the indexes of each sensor in the temperatures array
+#define RADIATOR_SENSOR 0
+#define ROOM_SENSOR 1
 
 /*
  * Onewire specific declarations and defines
@@ -18,16 +23,6 @@
 // Map sensors to onewire buses Sensor1 is on P1_0, Sensor2 is on P1_1
 __code const unsigned char sensor_pinmask_map[2] =
   { 0x01, 0x02 };
-
-// Store 64 bit rom values of registers/devices
-__code const unsigned char register_rom_map[][8] =
-  {
-  // If the first byte is zero, then there is only one device on bus
-        { 0x28, 0xe8, 0x33, 0x50, 0x01, 0x00, 0x00, 0x2f },
-      // If the first byte is zero, then there is only one device on bus
-        { 0x28, 0x5f, 0xfb, 0x4f, 0x01, 0x00, 0x00, 0x13 },
-      // A test bus, nothing on it now
-        { 0x00, 0x5f, 0xfb, 0x4f, 0x01, 0x00, 0x00, 0x13 } };
 
 bool conv_complete, bus0_conv_initiated, bus1_conv_initiated;
 
@@ -166,12 +161,12 @@ operate_onewire_temp_measurement(void)
 
       // Reset the conversion timer and set the complete flag so we
       // can wait for conversion time expiry on the next bus
-      reset_timeout(TEMP_CONV_TIMER);
+      reset_timeout(TIMER_MS, TEMP_CONV_TIMER);
       conv_complete = FALSE;
     }
   else
     {
-      conv_complete = timeout_occured(TEMP_CONV_TIMER,
+      conv_complete = timeout_occured(TEMP_CONV_TIMER, TIMER_MS,
           DS18x20_CONV_TIME / NR_OF_OW_BUSES);
     }
 }
@@ -197,7 +192,7 @@ activate_pwm_state(unsigned char next_pwm_state)
 void
 operate_PWM(void)
 {
-  if (timeout_occured(PWM_TIMER, pwm_wait_time))
+  if (timeout_occured(PWM_TIMER, TIMER_SEC, pwm_wait_time))
     {
       if(!pwm_active)
         {
@@ -215,7 +210,7 @@ operate_PWM(void)
           PWM_PIN = 0;
           pwm_state = PWM_OFF;
         }
-      reset_timeout(PWM_TIMER);
+      reset_timeout(PWM_TIMER, TIMER_SEC);
     }
 }
 
@@ -239,13 +234,51 @@ init_device(void)
   bus_to_address = 0;
 
   // Reset conversion timers and distribute conversion across the 2 sensors
-  reset_timeout(TEMP_CONV_TIMER);
+  reset_timeout(TEMP_CONV_TIMER, TIMER_MS);
 
   // Reset PWM
   pwm_on_time = 0;
   pwm_off_time = 1;
   pwm_state = PWM_OFF;
   pwm_active = FALSE;
+
+  init_ui();
+}
+
+void
+operate_chilling_logoic(void)
+{
+
+  // Setup new pwm parameters
+  pwm_on_time = 0;
+  pwm_off_time = 0;
+
+}
+
+void
+operate_ui(void)
+{
+  unsigned char input_event;
+  input_event = get_ui_input_event();
+
+  switch (input_event)
+  {
+  case NO_INPUT_EVENT:
+    break;
+  case PLUS_INPUT_PRESSED:
+    break;
+  case PLUS_INPUT_RELEASED:
+    break;
+  case MINUS_INPUT_PRESSED:
+    break;
+  case MINUS_INPUT_RELEASED:
+    break;
+  case SET_INPUT_PRESSED:
+    break;
+  case SET_INPUT_RELEASED:
+    break;
+  }
+
 }
 
 void
@@ -254,17 +287,18 @@ main(void)
 // Enable interrupts and initialize timer
   EA = 1;
   init_timer();
-
+// Initialize the device
   init_device();
 
+// Start the main execution loop
   while (TRUE)
     {
       // Operate main device functions
       operate_onewire_temp_measurement();
 
-        // Setup new pwm parameters
-        pwm_on_time = 0;
-        pwm_off_time = 0;
+      operate_ui();
+
+      operate_chilling_logoic();
 
       operate_PWM();
     }

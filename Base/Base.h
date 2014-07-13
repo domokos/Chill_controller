@@ -21,23 +21,17 @@
 
 typedef __bit bool;
 
-#define ONE_MS_TIMEOUT 1
-#define ONE_SEC_TIMEOUT 1000
+// Timeout ids
+#define DELAY_TIMEOUT 0
+#define TEMP_CONV_TIMER 1
+#define PWM_TIMER 2
 
-// Timeout types
-#define MSG_TIMEOUT 0
-#define RESPONSE_TIMEOUT 1
-#define DELAY_TIMEOUT 2
+// Define the number of timers
+#define NR_OF_TIMERS 3
 
-#ifdef __CDT_PARSER__
-  #define TEMP_CONV_TIMER 1
-  #define PWM_TIMER 2
-#elif defined CHILL_CONTROLLER
-  #define TEMP_CONV_TIMER 1
-  #define PWM_TIMER 2
-#else
-  #error "Unknown device type for setting timer constants"
-#endif
+// Timer types
+#define TIMER_MS 0
+#define TIMER_SEC 1
 
 /*
  * Internal utility functions
@@ -59,14 +53,14 @@ void delay_sec(unsigned int sec);
 // Wait for milliseconds
 void delay_msec(unsigned int msec);
 
-// start and reset the messaging timeout counter
-void reset_timeout(unsigned char type);
+// reset and start the messaging timeout counter
+void reset_timeout(unsigned char id, unsigned char type);
 
 // Get the time elapsed since reset
-unsigned int get_time_elapsed(unsigned char type);
+unsigned int get_time_elapsed(unsigned char id, unsigned char type);
 
 // Return if there was a timeout
-// The calling parameter holds the timeout limit in miliseconds
-bool timeout_occured(unsigned char type, unsigned int timeout_limit);
+// The calling parameter holds the timeout limit in units indicated by the type
+bool timeout_occured(unsigned char id, unsigned char type, unsigned int timeout_limit);
 
 #endif /* BASE_H_ */

@@ -7,12 +7,12 @@
  */
 #include "Base.h"
 
-// Global variables
-bool timer_initialized = FALSE;
-static volatile unsigned int  ms_time_counter, sec_counter;
-static volatile unsigned char  sec_counter_helper;
+// Module variables
+static bool timer_initialized = FALSE;
+static volatile unsigned int  ms_time_counter, sec_time_counter;
+static volatile unsigned char sec_time_counter_helper;
 
-static unsigned int timer_start_times[5];
+static unsigned int timer_start_times[NR_OF_TIMERS];
 
 /*
  * Internal utility functions
@@ -22,14 +22,16 @@ static unsigned int timer_start_times[5];
 // The timer ISR - set up to occur every 1 ms for a 11.0592 MHz Crystal
 ISR(TIMER0,0)
 {
-  // Increase timer
+  // Increase timers
   ms_time_counter++;
-  sec_counter_helper++;
-  if(sec_counter_helper == 100)
+  sec_time_counter_helper++;
+
+  // increment sec counter in every 100th cycle
+  if(sec_time_counter_helper == 100)
     {
-      sec_counter_helper = 0;
-      sec_counter++;
-    } else {
+      sec_time_counter_helper = 0;
+      sec_time_counter++;
+    } else { // Ensure that time spent in the ISR takes the same amount of time on both execution paths
       __asm
       nop
       nop
@@ -51,10 +53,10 @@ ISR(TIMER0,0)
 // spent executing the ISR itself
 
 #ifdef  CRYSTAL_SPEED_LO
-  TL0  = 0x50;   // Restart from 0xfc66 (1 ms) - decimal 1c = 0xfc50
+  TL0  = 0x44;   // Restart from 0xfc66 (1 ms) - decimal 34 = 0xfc44
   TH0  = 0xfc;
 #elif defined CRYSTAL_SPEED_HI
-  TL0  = 0xb6;   // Restart from 0xf8cc (1 ms) - decimal 1c = 0xf8b6
+  TL0  = 0xaa;   // Restart from 0xf8cc (1 ms) - decimal 34 = 0xf8aa
   TH0  = 0xf8;
 #else
 #error "No or incorrect crystal speed defined."
@@ -72,10 +74,10 @@ void init_timer(void)
 {
   TR0  = 0;
 #ifdef  CRYSTAL_SPEED_LO
-  TL0  = 0x50;    // Start from 0xfc50
+  TL0  = 0x44;    // Start from 0xfc44
   TH0  = 0xfc;
 #elif defined CRYSTAL_SPEED_HI
-  TL0  = 0xb6;    // Start from 0xf8b6
+  TL0  = 0xaa;    // Start from 0xf8aa
   TH0  = 0xf8;
 #else
 #error "No or incorrect crystal speed defined."
@@ -83,7 +85,7 @@ void init_timer(void)
   TMOD = (TMOD&0xF0)|0x01;    // Set Timer 0 16-bit mode
   TR0  = 1;       // Start Timer 0
   ET0  = 1;      // Enable Timer0 interrupt
-  sec_counter_helper = 0;
+  sec_time_counter_helper = 0;
   timer_initialized = TRUE;
 }
 
@@ -93,9 +95,9 @@ void delay_sec(unsigned int sec)
 {
   if ( sec == 0 ) return;   // Return if delaytime is zero
 
-  reset_timeout(DELAY_TIMEOUT);
+  reset_timeout(DELAY_TIMEOUT, TIMER_SEC);
 
-  while ( !timeout_occured(DELAY_TIMEOUT, ONE_SEC_TIMEOUT))
+  while ( !timeout_occured(DELAY_TIMEOUT, TIMER_SEC, 1))
     {
       __asm nop __endasm;
     }             // Wait delaytime
@@ -115,9 +117,9 @@ void delay_msec(unsigned int msec)
  *      We will use 922 ticks - to reload timer registers: FC66
  */
 
-  reset_timeout(DELAY_TIMEOUT);
+  reset_timeout(DELAY_TIMEOUT, TIMER_MS);
 
-  while ( !timeout_occured(DELAY_TIMEOUT, ONE_MS_TIMEOUT))
+  while ( !timeout_occured(DELAY_TIMEOUT, TIMER_MS, 1))
     {
       __asm nop __endasm;
     }             // Wait delaytime
@@ -125,39 +127,54 @@ void delay_msec(unsigned int msec)
 }
 
 
-// start and reset the messaging timeout counter
-void reset_timeout(unsigned char type)
+// Reset and start timeout counter
+void reset_timeout(unsigned char id, unsigned char type)
 {
   // Initialize timer if it is not initialized
   if(!timer_initialized) init_timer();
-
-  timer_start_times[type] = ms_time_counter;
+  if(type == TIMER_MS)
+    {
+      timer_start_times[id] = ms_time_counter;
+    } else {
+      timer_start_times[id] = sec_time_counter;
+    }
 }
 
-// Get the time elapsed since reset
-unsigned int get_time_elapsed(unsigned char type)
+// Get the time elapsed since reset in the unit indicated
+unsigned int get_time_elapsed(unsigned char id, unsigned char type)
 {
   unsigned int counter;
 
   // Get the time counter value
-  ET0  = 0;
-  counter = ms_time_counter;
-  ET0  = 1;
+  if(type == TIMER_MS)
+    {
+      ET0  = 0;
+      counter = ms_time_counter;
+      ET0  = 1;
+    } else {
+      ET0  = 0;
+      counter = sec_time_counter;
+      ET0  = 1;
+    }
 
   // If there is no owerflow in the interrupt ticks
   // (equality is regarded as no timeout - just started)
-  if (counter >= timer_start_times[type])
+  if (counter >= timer_start_times[id])
     {
-      return counter - timer_start_times[type];
+      return counter - timer_start_times[id];
   // There was an overflow - no multiple overflow is expected - timer must firs be reset and then queried regularily
     } else {
-      return ((unsigned int)((unsigned int) 0xffff - timer_start_times[type])) + counter;
+      return ((unsigned int)((unsigned int) 0xffff - timer_start_times[id])) + counter;
     }
+// Prevent Eclipse mockering about function not returning a value
+#ifdef __CDT_PARSER__
+  return 0;
+#endif
 }
 
 // Return if there was a timeout
 // The calling parameter holds the timeout limit in miliseconds
-bool timeout_occured(unsigned char type, unsigned int timeout_limit)
+bool timeout_occured(unsigned char id, unsigned char type, unsigned int timeout_limit)
 {
- return get_time_elapsed(type) >= timeout_limit;
+ return get_time_elapsed(id, type) >= timeout_limit;
 }
