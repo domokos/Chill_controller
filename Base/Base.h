@@ -25,9 +25,10 @@ typedef __bit bool;
 #define DELAY_TIMEOUT 0
 #define TEMP_CONV_TIMER 1
 #define PWM_TIMER 2
+#define BLINK_TIMER 3
 
 // Define the number of timers
-#define NR_OF_TIMERS 3
+#define NR_OF_TIMERS 4
 
 // Timer types
 #define TIMER_MS 0

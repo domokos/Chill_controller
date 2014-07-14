@@ -255,11 +255,10 @@ operate_chilling_logoic(void)
 
 }
 
-void
-operate_ui(void)
+void handle_ui(void)
 {
   unsigned char input_event;
-  input_event = get_ui_input_event();
+  input_event = do_ui();
 
   switch (input_event)
   {
@@ -267,15 +266,9 @@ operate_ui(void)
     break;
   case PLUS_INPUT_PRESSED:
     break;
-  case PLUS_INPUT_RELEASED:
-    break;
   case MINUS_INPUT_PRESSED:
     break;
-  case MINUS_INPUT_RELEASED:
-    break;
   case SET_INPUT_PRESSED:
-    break;
-  case SET_INPUT_RELEASED:
     break;
   }
 
@@ -296,7 +289,7 @@ main(void)
       // Operate main device functions
       operate_onewire_temp_measurement();
 
-      operate_ui();
+      handle_ui();
 
       operate_chilling_logoic();
 
