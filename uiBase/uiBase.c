@@ -18,7 +18,7 @@ static unsigned char segment_buffer[NR_OF_DIGITS];
 // The index to be used in the actual display cycle
 static unsigned char display_index;
 
-// Blink flag
+// Blink flags
 static bool blink, is_blinking, display_off;
 
 // 7-segment display encoder lookup table
@@ -159,10 +159,10 @@ display_output(void)
     }else{
      // Perform normal operation
 
-      // Extinguish the currently displayed digit - extinguish all
+      // Extinguish the currently displayed digit
       // Write the actual display buffer to the output
       // Display the actual digit and
-      // move the index to the next display for the next cycle
+      // move the index to the next digit for the next cycle
       switch(display_index)
       {
       case 0:
@@ -214,7 +214,8 @@ display_output(void)
 }
 
 // Sets the temperature value to be displayed into the display buffer. Takes 100 times the value to be displayed
-void set_display_temp(signed int value)
+void
+set_display_temp(signed int value)
 {
   unsigned int uns_value;
 
@@ -254,7 +255,8 @@ void set_display_temp(signed int value)
     }
 }
 
-void set_blink(bool blink_request)
+void
+set_blink(bool blink_request)
 {
   blink = blink_request;
 }

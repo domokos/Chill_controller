@@ -24,11 +24,12 @@ typedef __bit bool;
 // Timeout ids
 #define DELAY_TIMEOUT 0
 #define TEMP_CONV_TIMER 1
-#define PWM_TIMER 2
-#define BLINK_TIMER 3
+#define TEMP_MEASUREMENT_TIMER 2
+#define PWM_TIMER 3
+#define BLINK_TIMER 4
 
 // Define the number of timers
-#define NR_OF_TIMERS 4
+#define NR_OF_TIMERS 5
 
 // Timer types
 #define TIMER_MS 0

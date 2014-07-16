@@ -12,8 +12,10 @@
 #define NR_OF_TEMP_SENSORS 2
 #define NR_OF_OW_BUSES 2
 #define PWM_PIN P1_2
+#define FILTER_BUFFER_LENGTH 5
+#define TEMP_MEASUREMENT_PERIOD_SEC 60
 
-// Define the indexes of each sensor in the temperatures array
+// Define the indexes of each sensor in the temperatures_buffer array
 #define RADIATOR_SENSOR 0
 #define ROOM_SENSOR 1
 
@@ -26,10 +28,10 @@ __code const unsigned char sensor_pinmask_map[2] =
 
 bool conv_complete, bus0_conv_initiated, bus1_conv_initiated;
 
-// Buffer to store Temperatures and temp reading timeout
-// temperatures are initialized @ 0C. At each unsuccesful reset or read attempt
-// the value ONEWIRE_TEMP_FAIL is stored. This value is never the result of a succesful conversion
-int temperatures[NR_OF_TEMP_SENSORS];
+// Buffer to store Temperatures and its index
+int temperatures_buffer[NR_OF_TEMP_SENSORS][FILTER_BUFFER_LENGTH];
+int prompt_temp[NR_OF_TEMP_SENSORS];
+unsigned char temp_buffer_index[NR_OF_TEMP_SENSORS];
 
 // Sensors are read in a circular manner. On e cycle completes in time equal to the conversion
 // time. This variable holds the id of the sensor to be addressed next during the cycle.
@@ -77,10 +79,10 @@ set_temp_resolution(unsigned char sensor_id, unsigned char resolution)
 void
 scale_DS18B20_result(unsigned char sensor_id)
 {
-  temperatures[sensor_id] *= 8;
-  temperatures[sensor_id] &= 0xFFF0;
-  temperatures[sensor_id] += 12;
-  temperatures[sensor_id] -= ow_buf[6];
+  temperatures_buffer[sensor_id][temp_buffer_index[sensor_id]] *= 8;
+  temperatures_buffer[sensor_id][temp_buffer_index[sensor_id]] &= 0xFFF0;
+  temperatures_buffer[sensor_id][temp_buffer_index[sensor_id]] += 12;
+  temperatures_buffer[sensor_id][temp_buffer_index[sensor_id]] -= ow_buf[6];
 }
 
 // Read a DS18xx sensor
@@ -101,15 +103,23 @@ read_DS18xxx(unsigned char sensor_id)
 
       if (ow_buf[8] == calculate_onewire_crc(ow_buf, 8) && ow_buf[7] == 0x10)
         {
-          temperatures[sensor_id] = ow_buf[0] | (ow_buf[1] << 8);
-
+          prompt_temp[sensor_id] = ow_buf[0] | (ow_buf[1] << 8);
           // If result needs scaling up then scale it up
 //          if (sensor_identification[sensor_id][SCALE_POSITION] == SCALE_TEMP)
 //            scale_DS18B20_result(sensor_id);
         }
-      else
+
+      // Increment measurement index if the buffer should be filled and fill the buffer with the result of the current measurement
+      if (timeout_occured(TEMP_MEASUREMENT_TIMER, TIMER_SEC, TEMP_MEASUREMENT_PERIOD_SEC))
         {
-          temperatures[sensor_id] = ONEWIRE_TEMP_FAIL;
+        reset_timeout(TEMP_MEASUREMENT_TIMER, TIMER_SEC);
+
+        if (temp_buffer_index[sensor_id] < FILTER_BUFFER_LENGTH-1)
+          temp_buffer_index[sensor_id]++;
+        else
+          temp_buffer_index[sensor_id] = 0;
+
+        temperatures_buffer[sensor_id][temp_buffer_index[sensor_id]] = prompt_temp[sensor_id];
         }
     }
 }
@@ -172,6 +182,21 @@ operate_onewire_temp_measurement(void)
 }
 
 
+// Calculate the filtered average temperature
+//  m_k = m_{k-1} + (x_k - m_{k-1}) / k
+int get_filtered_mean_temp(unsigned char sensor_id)
+{
+  unsigned char i;
+  int average;
+
+  average = (temperatures_buffer[sensor_id][0] + temperatures_buffer[sensor_id][1]) / 2;
+
+  for(i = 2; i < FILTER_BUFFER_LENGTH; i++)
+    average = average + (temperatures_buffer[sensor_id][i] - average) / (i+1);
+
+  return average;
+}
+
 // Activate the PWM output values on the extender outputs and reset PWM timer
 void
 activate_pwm_state(unsigned char next_pwm_state)
@@ -217,11 +242,19 @@ operate_PWM(void)
 void
 init_device(void)
 {
-  unsigned char i;
+  unsigned char i,j;
 
   i = NR_OF_TEMP_SENSORS;
   while (i--)
-    temperatures[i - 1] = 0;
+    {
+    j = FILTER_BUFFER_LENGTH;
+    while (j--)
+      temperatures_buffer[i-1][j-1] = 0;
+    }
+  temp_buffer_index[RADIATOR_SENSOR] = 0;
+  temp_buffer_index[ROOM_SENSOR] = 0;
+
+  reset_timeout(TEMP_MEASUREMENT_TIMER, TIMER_SEC);
 
   // Set initial resolutions to 12 bit
   set_temp_resolution(0, TEMP_RESOLUTION_12BIT);
