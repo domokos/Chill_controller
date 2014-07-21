@@ -152,9 +152,9 @@ display_output(void)
   if(display_off)
     {
       // Turn off all digits
-      DIGIT_1 = 0;
-      DIGIT_2 = 0;
-      DIGIT_3 = 0;
+      DIGIT_1 = OFF;
+      DIGIT_2 = OFF;
+      DIGIT_3 = OFF;
 
     }else{
      // Perform normal operation
@@ -166,21 +166,21 @@ display_output(void)
       switch(display_index)
       {
       case 0:
-        DIGIT_3 = 0;
+        DIGIT_3 = OFF;
         write_segment_output(display_index);
-        DIGIT_1 = 1;
+        DIGIT_1 = ON;
         display_index = 1;
         break;
       case 1:
-        DIGIT_1 = 0;
+        DIGIT_1 = OFF;
         write_segment_output(display_index);
-        DIGIT_2 = 1;
+        DIGIT_2 = ON;
         display_index = 2;
         break;
       case 2:
-        DIGIT_2 = 0;
+        DIGIT_2 = OFF;
         write_segment_output(display_index);
-        DIGIT_3 = 1;
+        DIGIT_3 = ON;
         display_index = 0;
         break;
       }

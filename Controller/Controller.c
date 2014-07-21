@@ -28,10 +28,13 @@ __code const unsigned char sensor_pinmask_map[2] =
 
 bool conv_complete, bus0_conv_initiated, bus1_conv_initiated;
 
-// Buffer to store Temperatures and its index
+// Buffer to store Temperatures and teir index
 int temperatures_buffer[NR_OF_TEMP_SENSORS][FILTER_BUFFER_LENGTH];
 int prompt_temp[NR_OF_TEMP_SENSORS];
 unsigned char temp_buffer_index[NR_OF_TEMP_SENSORS];
+
+// The target temperature of the controller
+int target_temp;
 
 // Sensors are read in a circular manner. On e cycle completes in time equal to the conversion
 // time. This variable holds the id of the sensor to be addressed next during the cycle.
@@ -76,18 +79,42 @@ set_temp_resolution(unsigned char sensor_id, unsigned char resolution)
     }
 }
 
-void
-scale_DS18B20_result(unsigned char sensor_id)
+int
+convert_to_displayable_temp(int measured_bits)
 {
-  temperatures_buffer[sensor_id][temp_buffer_index[sensor_id]] *= 8;
-  temperatures_buffer[sensor_id][temp_buffer_index[sensor_id]] &= 0xFFF0;
-  temperatures_buffer[sensor_id][temp_buffer_index[sensor_id]] += 12;
-  temperatures_buffer[sensor_id][temp_buffer_index[sensor_id]] -= ow_buf[6];
+  int integer_part;
+  int fractional_part;
+
+  integer_part = measured_bits >> 4;
+
+  integer_part = integer_part * 10;
+
+  if (measured_bits < 0)
+    fractional_part = measured_bits & 0x000f;
+  else
+    fractional_part = (measured_bits & 0x000f) | 0xfff0;
+
+  fractional_part = (fractional_part * 100) / 16;
+
+  if (measured_bits < 0)
+    {
+      if (fractional_part % 10 < 5)
+        fractional_part = fractional_part / 10;
+      else
+        fractional_part = (fractional_part / 10) + 1;
+    }else{
+      if (fractional_part % 10 < -5)
+        fractional_part = (fractional_part / 10) - 1;
+      else
+        fractional_part = (fractional_part / 10);
+    }
+
+  return integer_part + fractional_part;
 }
 
-// Read a DS18xx sensor
+// Read a DS18B20 sensor
 void
-read_DS18xxx(unsigned char sensor_id)
+read_DS18B20(unsigned char sensor_id)
 {
   unsigned char i, pinmask = sensor_pinmask_map[sensor_id];
 
@@ -102,12 +129,7 @@ read_DS18xxx(unsigned char sensor_id)
         ow_buf[i] = onewire_read_byte(pinmask);
 
       if (ow_buf[8] == calculate_onewire_crc(ow_buf, 8) && ow_buf[7] == 0x10)
-        {
-          prompt_temp[sensor_id] = ow_buf[0] | (ow_buf[1] << 8);
-          // If result needs scaling up then scale it up
-//          if (sensor_identification[sensor_id][SCALE_POSITION] == SCALE_TEMP)
-//            scale_DS18B20_result(sensor_id);
-        }
+          prompt_temp[sensor_id] = convert_to_displayable_temp(ow_buf[0] | (ow_buf[1] << 8));
 
       // Increment measurement index if the buffer should be filled and fill the buffer with the result of the current measurement
       if (timeout_occured(TEMP_MEASUREMENT_TIMER, TIMER_SEC, TEMP_MEASUREMENT_PERIOD_SEC))
@@ -152,7 +174,7 @@ operate_onewire_temp_measurement(void)
         // Evaluate side effect: Only read until read is succesful
         if (bus0_conv_initiated)
           {
-            read_DS18xxx(0);
+            read_DS18B20(0);
           }
         bus0_conv_initiated = issue_convert_on_bus(0);
         bus_to_address = 1;
@@ -162,7 +184,7 @@ operate_onewire_temp_measurement(void)
         // Evaluate side effect: Only read until read is succesful
         if (bus1_conv_initiated)
           {
-            read_DS18xxx(1);
+            read_DS18B20(1);
           }
         bus1_conv_initiated = issue_convert_on_bus(1);
         bus_to_address = 0;
@@ -187,7 +209,7 @@ operate_onewire_temp_measurement(void)
 int get_filtered_mean_temp(unsigned char sensor_id)
 {
   unsigned char i;
-  int average;
+  char average;
 
   average = (temperatures_buffer[sensor_id][0] + temperatures_buffer[sensor_id][1]) / 2;
 
@@ -240,6 +262,35 @@ operate_PWM(void)
 }
 
 void
+operate_chilling_logoic(void)
+{
+
+  // Setup new pwm parameters
+  pwm_on_time = 0;
+  pwm_off_time = 0;
+
+}
+
+void handle_ui(void)
+{
+  unsigned char input_event;
+  input_event = do_ui();
+
+  switch (input_event)
+  {
+  case NO_INPUT_EVENT:
+    break;
+  case PLUS_INPUT_PRESSED:
+    break;
+  case MINUS_INPUT_PRESSED:
+    break;
+  case SET_INPUT_PRESSED:
+    break;
+  }
+
+}
+
+void
 init_device(void)
 {
   unsigned char i,j;
@@ -276,35 +327,6 @@ init_device(void)
   pwm_active = FALSE;
 
   init_ui();
-}
-
-void
-operate_chilling_logoic(void)
-{
-
-  // Setup new pwm parameters
-  pwm_on_time = 0;
-  pwm_off_time = 0;
-
-}
-
-void handle_ui(void)
-{
-  unsigned char input_event;
-  input_event = do_ui();
-
-  switch (input_event)
-  {
-  case NO_INPUT_EVENT:
-    break;
-  case PLUS_INPUT_PRESSED:
-    break;
-  case MINUS_INPUT_PRESSED:
-    break;
-  case SET_INPUT_PRESSED:
-    break;
-  }
-
 }
 
 void

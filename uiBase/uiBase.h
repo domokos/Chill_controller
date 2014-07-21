@@ -70,6 +70,8 @@ extern static bool blink, is_blinking, display_off;
 #define DIGIT_1 P3_5
 #define DIGIT_2 P3_7
 #define DIGIT_3 P1_6
+#define ON 1
+#define OFF 0
 
 // additional segment display values
 #define CHAR_L 0x1c
