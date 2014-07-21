@@ -209,7 +209,7 @@ operate_onewire_temp_measurement(void)
 int get_filtered_mean_temp(unsigned char sensor_id)
 {
   unsigned char i;
-  char average;
+  int average;
 
   average = (temperatures_buffer[sensor_id][0] + temperatures_buffer[sensor_id][1]) / 2;
 
