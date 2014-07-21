@@ -89,14 +89,14 @@ convert_to_displayable_temp(int measured_bits)
 
   integer_part = integer_part * 10;
 
-  if (measured_bits < 0)
+  if (measured_bits >= 0)
     fractional_part = measured_bits & 0x000f;
   else
     fractional_part = (measured_bits & 0x000f) | 0xfff0;
 
   fractional_part = (fractional_part * 100) / 16;
 
-  if (measured_bits < 0)
+  if (measured_bits >= 0)
     {
       if (fractional_part % 10 < 5)
         fractional_part = fractional_part / 10;
