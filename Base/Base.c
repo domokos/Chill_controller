@@ -128,7 +128,7 @@ void delay_msec(unsigned int msec)
 
 
 // Reset and start timeout counter
-void reset_timeout(unsigned char id, unsigned char type)
+void reset_timeout(timer_id_type id, timer_type type)
 {
   // Initialize timer if it is not initialized
   if(!timer_initialized) init_timer();
@@ -141,7 +141,7 @@ void reset_timeout(unsigned char id, unsigned char type)
 }
 
 // Get the time elapsed since reset in the unit indicated
-unsigned int get_time_elapsed(unsigned char id, unsigned char type)
+unsigned int get_time_elapsed(timer_id_type id, timer_type type)
 {
   unsigned int counter;
 
@@ -174,7 +174,7 @@ unsigned int get_time_elapsed(unsigned char id, unsigned char type)
 
 // Return if there was a timeout
 // The calling parameter holds the timeout limit in miliseconds
-bool timeout_occured(unsigned char id, unsigned char type, unsigned int timeout_limit)
+bool timeout_occured(timer_id_type id, timer_type type, unsigned int timeout_limit)
 {
  return get_time_elapsed(id, type) >= timeout_limit;
 }

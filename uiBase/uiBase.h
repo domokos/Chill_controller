@@ -17,7 +17,7 @@
  */
 
 // define the number of input lines
-#define NR_OF_INPUTS 3
+#define NR_OF_INPUTS 2
 
 // Event buffer STRUCT
 struct input_events
@@ -29,14 +29,13 @@ struct input_events
 // define input line pins
 #define PLUS_INPUT_PIN P1_3
 #define MINUS_INPUT_PIN P1_4
-#define SET_INPUT_PIN P1_5
 #define MASK_START_VALUE 0x08
 
 // define input events
-#define NO_INPUT_EVENT 0
-#define PLUS_INPUT_PRESSED 1
-#define MINUS_INPUT_PRESSED 2
-#define SET_INPUT_PRESSED 3
+typedef enum {
+    NO_INPUT_EVENT=0,
+    PLUS_INPUT_PRESSED=1,
+    MINUS_INPUT_PRESSED=2 } input_event_type;
 
 // input event counter threshold
 #define INPUT_EVENT_COUNT_THRESHOLD 20
@@ -66,6 +65,12 @@ extern static bool blink, is_blinking, display_off;
 #define NR_OF_DIGITS 3
 #define BLINK_PERIOD_MS 600
 
+typedef enum {
+  FIRST_DIGIT,
+  SECOND_DIGIT,
+  THIRD_DIGIT
+} display_index_type;
+
 // Digit selector pins
 #define DIGIT_1 P3_5
 #define DIGIT_2 P3_7
@@ -84,10 +89,10 @@ extern static bool blink, is_blinking, display_off;
 void init_ui(void);
 
 // The UI event generator and ui operator function
-unsigned char do_ui(void);
+input_event_type do_ui(void);
 // Sets the temperature value to be displayed into the display buffer. Takes 100 times the value to be displayed
 void set_display_temp(signed int value);
-void set_blink(bool blink_request);
+void set_display_blink(bool blink_request);
 
 // The output display handler
 static void display_output(void);

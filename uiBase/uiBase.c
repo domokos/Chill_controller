@@ -16,7 +16,7 @@ static struct input_events input_line_event_buffer[NR_OF_INPUTS];
 static unsigned char segment_buffer[NR_OF_DIGITS];
 
 // The index to be used in the actual display cycle
-static unsigned char display_index;
+static display_index_type display_index;
 
 // Blink flags
 static bool blink, is_blinking, display_off;
@@ -50,10 +50,11 @@ init_ui(void)
   reset_segment_output();
 }
 
-unsigned char
+input_event_type
 do_ui(void)
 {
-  unsigned char input_mask, i, return_event;
+  unsigned char input_mask, i;
+  input_event_type return_event;
 
   return_event = NO_INPUT_EVENT;
   input_mask = MASK_START_VALUE;
@@ -111,7 +112,7 @@ reset_segment_output(void)
   NMR_PIN = 1;
   NOE_PIN = 0;
 
-  display_index = 0;
+  display_index = FIRST_DIGIT;
   DIGIT_1 = 0;
   DIGIT_2 = 0;
   DIGIT_3 = 0;
@@ -165,23 +166,23 @@ display_output(void)
       // move the index to the next digit for the next cycle
       switch(display_index)
       {
-      case 0:
+      case FIRST_DIGIT:
         DIGIT_3 = OFF;
         write_segment_output(display_index);
         DIGIT_1 = ON;
-        display_index = 1;
+        display_index = SECOND_DIGIT;
         break;
-      case 1:
+      case SECOND_DIGIT:
         DIGIT_1 = OFF;
         write_segment_output(display_index);
         DIGIT_2 = ON;
-        display_index = 2;
+        display_index = THIRD_DIGIT;
         break;
-      case 2:
+      case THIRD_DIGIT:
         DIGIT_2 = OFF;
         write_segment_output(display_index);
         DIGIT_3 = ON;
-        display_index = 0;
+        display_index = FIRST_DIGIT;
         break;
       }
     }
@@ -256,7 +257,7 @@ set_display_temp(signed int value)
 }
 
 void
-set_blink(bool blink_request)
+set_display_blink(bool blink_request)
 {
   blink = blink_request;
 }

@@ -1,23 +1,11 @@
 /*
- * Furnace_temp_device.c
+ * Chiller controller.c
  *
- *  Created on: Oct 22, 2012
+ *  Created on: Jul 27, 2014
  *      Author: dmolnar
  */
 
-#include "Base.h"
-#include "Onewire.h"
-#include "uiBase.h"
-
-#define NR_OF_TEMP_SENSORS 2
-#define NR_OF_OW_BUSES 2
-#define PWM_PIN P1_2
-#define FILTER_BUFFER_LENGTH 5
-#define TEMP_MEASUREMENT_PERIOD_SEC 60
-
-// Define the indexes of each sensor in the temperatures_buffer array
-#define RADIATOR_SENSOR 0
-#define ROOM_SENSOR 1
+#include "Controller.h"
 
 /*
  * Onewire specific declarations and defines
@@ -30,25 +18,23 @@ bool conv_complete, bus0_conv_initiated, bus1_conv_initiated;
 
 // Buffer to store Temperatures and teir index
 int temperatures_buffer[NR_OF_TEMP_SENSORS][FILTER_BUFFER_LENGTH];
-int prompt_temp[NR_OF_TEMP_SENSORS];
 unsigned char temp_buffer_index[NR_OF_TEMP_SENSORS];
 
 // The target temperature of the controller
 int target_temp;
+ui_state_type ui_state;
 
 // Sensors are read in a circular manner. On e cycle completes in time equal to the conversion
 // time. This variable holds the id of the sensor to be addressed next during the cycle.
 unsigned char bus_to_address;
 
 /*
- * PWM specific defines and variables
+ * PWM specific variables
  */
-// States and requested states
-#define PWM_OFF 0
-#define PWM_ON 1
 
 // Variables holding PWM times and state
-unsigned char pwm_on_time, pwm_off_time, pwm_wait_time, pwm_state;
+unsigned char pwm_on_time, pwm_off_time, pwm_wait_time;
+pwm_states pwm_state;
 
 // Variables holding PWM modification related flags
 bool pwm_active;
@@ -60,7 +46,7 @@ bool pwm_active;
  */
 
 bool
-set_temp_resolution(unsigned char sensor_id, unsigned char resolution)
+set_temp_resolution(sensor_type sensor_id, unsigned char resolution)
 {
   unsigned char pinmask = sensor_pinmask_map[sensor_id];
 
@@ -80,7 +66,7 @@ set_temp_resolution(unsigned char sensor_id, unsigned char resolution)
 }
 
 int
-convert_to_displayable_temp(int measured_bits)
+convert_to_decimal_temp(int measured_bits)
 {
   int integer_part;
   int fractional_part;
@@ -114,9 +100,10 @@ convert_to_displayable_temp(int measured_bits)
 
 // Read a DS18B20 sensor
 void
-read_DS18B20(unsigned char sensor_id)
+read_DS18B20(sensor_type sensor_id)
 {
   unsigned char i, pinmask = sensor_pinmask_map[sensor_id];
+  bool measurement_succesful;
 
   // Reset and read the temperature
   if (onewire_reset(pinmask))
@@ -128,20 +115,23 @@ read_DS18B20(unsigned char sensor_id)
       for (i = 0; i < 9; i++)
         ow_buf[i] = onewire_read_byte(pinmask);
 
-      if (ow_buf[8] == calculate_onewire_crc(ow_buf, 8) && ow_buf[7] == 0x10)
-          prompt_temp[sensor_id] = convert_to_displayable_temp(ow_buf[0] | (ow_buf[1] << 8));
+      measurement_succesful = (ow_buf[8] == calculate_onewire_crc(ow_buf, 8)) && (ow_buf[7] == 0x10);
 
       // Increment measurement index if the buffer should be filled and fill the buffer with the result of the current measurement
       if (timeout_occured(TEMP_MEASUREMENT_TIMER, TIMER_SEC, TEMP_MEASUREMENT_PERIOD_SEC))
         {
         reset_timeout(TEMP_MEASUREMENT_TIMER, TIMER_SEC);
 
-        if (temp_buffer_index[sensor_id] < FILTER_BUFFER_LENGTH-1)
-          temp_buffer_index[sensor_id]++;
-        else
-          temp_buffer_index[sensor_id] = 0;
+        if(measurement_succesful)
+          {
 
-        temperatures_buffer[sensor_id][temp_buffer_index[sensor_id]] = prompt_temp[sensor_id];
+            if (temp_buffer_index[sensor_id] < FILTER_BUFFER_LENGTH-1)
+              temp_buffer_index[sensor_id]++;
+            else
+              temp_buffer_index[sensor_id] = 0;
+
+            temperatures_buffer[sensor_id][temp_buffer_index[sensor_id]] = convert_to_decimal_temp(ow_buf[0] | (ow_buf[1] << 8));
+          }
         }
     }
 }
@@ -149,7 +139,7 @@ read_DS18B20(unsigned char sensor_id)
 // Return if conversion command is sent succesfully
 // It takes a reference to a specific device but issues convert on the entire bus
 bool
-issue_convert_on_bus(unsigned char sensor_id)
+issue_convert_on_bus(sensor_type sensor_id)
 {
   unsigned char pinmask = sensor_pinmask_map[sensor_id];
 
@@ -206,7 +196,7 @@ operate_onewire_temp_measurement(void)
 
 // Calculate the filtered average temperature
 //  m_k = m_{k-1} + (x_k - m_{k-1}) / k
-int get_filtered_mean_temp(unsigned char sensor_id)
+int get_filtered_mean_temp(sensor_type sensor_id)
 {
   unsigned char i;
   int average;
@@ -279,14 +269,47 @@ void handle_ui(void)
   switch (input_event)
   {
   case NO_INPUT_EVENT:
+    if (ui_state == SETTING_TARGET_TEMP && timeout_occured( UI_STATE_TIMER, TIMER_MS, UI_STATE_RESET_TIME_MS))
+      ui_state = ACTUAL_TEMP_DISPLAY;
     break;
   case PLUS_INPUT_PRESSED:
+    if (ui_state == ACTUAL_TEMP_DISPLAY)
+      {
+        ui_state = SETTING_TARGET_TEMP;
+        reset_timeout( UI_STATE_TIMER , TIMER_MS);
+
+      // ui_state == SETTING_TARGET_TEMP
+      }else{
+        if (target_temp < MAX_TARGET_TEMP)
+          target_temp += 1;
+        reset_timeout( UI_STATE_TIMER , TIMER_MS);
+      }
     break;
   case MINUS_INPUT_PRESSED:
-    break;
-  case SET_INPUT_PRESSED:
+    if (ui_state == ACTUAL_TEMP_DISPLAY)
+      {
+        ui_state = SETTING_TARGET_TEMP;
+        reset_timeout( UI_STATE_TIMER , TIMER_MS);
+
+      // ui_state == SETTING_TARGET_TEMP
+      }else{
+        if (target_temp > MIN_TARGET_TEMP)
+          target_temp -= 1;
+        reset_timeout( UI_STATE_TIMER , TIMER_MS);
+      }
     break;
   }
+
+  if (ui_state == ACTUAL_TEMP_DISPLAY)
+    {
+      set_display_temp(get_filtered_mean_temp(ROOM_SENSOR));
+      set_display_blink(FALSE);
+
+    // ui_state == SETTING_TARGET_TEMP
+    } else {
+       set_display_temp(target_temp);
+       set_display_blink(TRUE);
+    }
 
 }
 
@@ -326,7 +349,13 @@ init_device(void)
   pwm_state = PWM_OFF;
   pwm_active = FALSE;
 
+  //Set the initial target temp
+
+  target_temp = INITIAL_TARGET_TEMP;
+
   init_ui();
+
+  ui_state = ACTUAL_TEMP_DISPLAY;
 }
 
 void
