@@ -100,22 +100,22 @@ do_ui(void)
 static void
 reset_segment_output(void)
 {
-  NOE_PIN = 1;
-  DS_PIN = 0;
-  SHCP_PIN = 0;
-  NMR_PIN = 0;
+  NOE_PIN = ON;
+  DS_PIN = OFF;
+  SHCP_PIN = OFF;
+  NMR_PIN = OFF;
 
-  STCP_PIN = 0;
-  STCP_PIN = 1;
-  STCP_PIN = 0;
+  STCP_PIN = OFF;
+  STCP_PIN = ON;
+  STCP_PIN = OFF;
 
-  NMR_PIN = 1;
-  NOE_PIN = 0;
+  NMR_PIN = ON;
+  NOE_PIN = OFF;
 
   display_index = FIRST_DIGIT;
-  DIGIT_1 = 0;
-  DIGIT_2 = 0;
-  DIGIT_3 = 0;
+  DIGIT_1_POWER_LINE = OFF;
+  DIGIT_2_POWER_LINE = OFF;
+  DIGIT_3_POWER_LINE = OFF;
   blink = FALSE;
   is_blinking = FALSE;
   display_off = FALSE;
@@ -128,8 +128,8 @@ write_segment_output(unsigned char index)
   unsigned char mask;
 
   // Reset the shift registers
-  NMR_PIN = 0;
-  NMR_PIN = 1;
+  NMR_PIN = OFF;
+  NMR_PIN = ON;
 
   mask = 0x80;
 
@@ -137,14 +137,14 @@ write_segment_output(unsigned char index)
   while (mask)
     {
       DS_PIN = (segment_buffer[index] & mask) > 0;
-      SHCP_PIN = 1;
-      SHCP_PIN = 0;
+      SHCP_PIN = ON;
+      SHCP_PIN = OFF;
 
       mask >>= 1;
     }
 
-  STCP_PIN = 1;
-  STCP_PIN = 0;
+  STCP_PIN = ON;
+  STCP_PIN = OFF;
 }
 
 static void
@@ -153,9 +153,9 @@ display_output(void)
   if(display_off)
     {
       // Turn off all digits
-      DIGIT_1 = OFF;
-      DIGIT_2 = OFF;
-      DIGIT_3 = OFF;
+      DIGIT_1_POWER_LINE = OFF;
+      DIGIT_2_POWER_LINE = OFF;
+      DIGIT_3_POWER_LINE = OFF;
 
     }else{
      // Perform normal operation
@@ -167,21 +167,21 @@ display_output(void)
       switch(display_index)
       {
       case FIRST_DIGIT:
-        DIGIT_3 = OFF;
+        DIGIT_3_POWER_LINE = OFF;
         write_segment_output(display_index);
-        DIGIT_1 = ON;
+        DIGIT_1_POWER_LINE = ON;
         display_index = SECOND_DIGIT;
         break;
       case SECOND_DIGIT:
-        DIGIT_1 = OFF;
+        DIGIT_1_POWER_LINE = OFF;
         write_segment_output(display_index);
-        DIGIT_2 = ON;
+        DIGIT_2_POWER_LINE = ON;
         display_index = THIRD_DIGIT;
         break;
       case THIRD_DIGIT:
-        DIGIT_2 = OFF;
+        DIGIT_2_POWER_LINE = OFF;
         write_segment_output(display_index);
-        DIGIT_3 = ON;
+        DIGIT_3_POWER_LINE = ON;
         display_index = FIRST_DIGIT;
         break;
       }
@@ -223,36 +223,36 @@ set_display_temp(signed int value)
   if(value < -100)
     {
         // display " L0"
-        segment_buffer[0] = CHAR_SPACE;
-        segment_buffer[1] = CHAR_L;
-        segment_buffer[2] = digit_encoder[0];
+        segment_buffer[FIRST_DIGIT] = CHAR_SPACE;
+        segment_buffer[SECOND_DIGIT] = CHAR_L;
+        segment_buffer[THIRD_DIGIT] = digit_encoder[0];
     }else if(value < 0) {
         // display "-x.x"
         uns_value = value * -1;
-        segment_buffer[0] = CHAR_MINUS;
-        segment_buffer[1] = digit_encoder[(unsigned char) (uns_value / 10)];
-        segment_buffer[1] |= DOT_MASK;
-        segment_buffer[2] = digit_encoder[(unsigned char) (uns_value % 10)];
+        segment_buffer[FIRST_DIGIT] = CHAR_MINUS;
+        segment_buffer[SECOND_DIGIT] = digit_encoder[(unsigned char) (uns_value / 10)];
+        segment_buffer[SECOND_DIGIT] |= DOT_MASK;
+        segment_buffer[THIRD_DIGIT] = digit_encoder[(unsigned char) (uns_value % 10)];
     }else if(value < 100) {
         // display x.x
         uns_value = value;
-        segment_buffer[0] = CHAR_SPACE;
-        segment_buffer[1] = digit_encoder[(unsigned char) (uns_value / 10)];
-        segment_buffer[1] |= DOT_MASK;
-        segment_buffer[2] = digit_encoder[(unsigned char) (uns_value % 10)];
+        segment_buffer[FIRST_DIGIT] = CHAR_SPACE;
+        segment_buffer[SECOND_DIGIT] = digit_encoder[(unsigned char) (uns_value / 10)];
+        segment_buffer[SECOND_DIGIT] |= DOT_MASK;
+        segment_buffer[THIRD_DIGIT] = digit_encoder[(unsigned char) (uns_value % 10)];
     }else if(value < 1000) {
         // display xx.x
         uns_value = value;
-        segment_buffer[0] = digit_encoder[(unsigned char) (uns_value / 100)];
+        segment_buffer[FIRST_DIGIT] = digit_encoder[(unsigned char) (uns_value / 100)];
         uns_value = uns_value - (uns_value / 100)*100;
-        segment_buffer[1] = digit_encoder[(unsigned char) (uns_value / 10)];
-        segment_buffer[1] |= DOT_MASK;
-        segment_buffer[2] = digit_encoder[(unsigned char) (uns_value % 10)];
+        segment_buffer[SECOND_DIGIT] = digit_encoder[(unsigned char) (uns_value / 10)];
+        segment_buffer[SECOND_DIGIT] |= DOT_MASK;
+        segment_buffer[THIRD_DIGIT] = digit_encoder[(unsigned char) (uns_value % 10)];
     }else{
         // dsiplay HI
-        segment_buffer[0] = CHAR_SPACE;
-        segment_buffer[1] = CHAR_H;
-        segment_buffer[2] = digit_encoder[1];
+        segment_buffer[FIRST_DIGIT] = CHAR_SPACE;
+        segment_buffer[SECOND_DIGIT] = CHAR_H;
+        segment_buffer[THIRD_DIGIT] = digit_encoder[1];
     }
 }
 

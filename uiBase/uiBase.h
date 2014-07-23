@@ -66,15 +66,15 @@ extern static bool blink, is_blinking, display_off;
 #define BLINK_PERIOD_MS 600
 
 typedef enum {
-  FIRST_DIGIT,
-  SECOND_DIGIT,
-  THIRD_DIGIT
+  FIRST_DIGIT=0,
+  SECOND_DIGIT=1,
+  THIRD_DIGIT=2
 } display_index_type;
 
 // Digit selector pins
-#define DIGIT_1 P3_5
-#define DIGIT_2 P3_7
-#define DIGIT_3 P1_6
+#define DIGIT_1_POWER_LINE P3_5
+#define DIGIT_2_POWER_LINE P3_7
+#define DIGIT_3_POWER_LINE P1_6
 #define ON 1
 #define OFF 0
 
