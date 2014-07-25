@@ -14,7 +14,7 @@
 __code const unsigned char sensor_pinmask_map[2] =
   { 0x01, 0x02 };
 
-bool conv_complete, bus0_conv_initiated, bus1_conv_initiated;
+bool conv_complete, bus0_conv_initiated, bus1_conv_initiated, reevaluate_chill_logic;
 
 // Buffer to store Temperatures and teir index
 int temperatures_buffer[NR_OF_TEMP_SENSORS][FILTER_BUFFER_LENGTH];
@@ -22,6 +22,10 @@ unsigned char temp_buffer_index[NR_OF_TEMP_SENSORS];
 
 // The target temperature of the controller
 int target_temp;
+unsigned int icing_condition_counter;
+chiller_state_type chiller_state;
+
+// Variable to store the state of the UI
 ui_state_type ui_state;
 
 // Sensors are read in a circular manner. On e cycle completes in time equal to the conversion
@@ -33,7 +37,7 @@ unsigned char bus_to_address;
  */
 
 // Variables holding PWM times and state
-unsigned char pwm_on_time, pwm_off_time, pwm_wait_time;
+unsigned int pwm_on_time, pwm_off_time, pwm_wait_time;
 pwm_states pwm_state;
 
 // Variables holding PWM modification related flags
@@ -131,6 +135,8 @@ read_DS18B20(sensor_type sensor_id)
               temp_buffer_index[sensor_id] = 0;
 
             temperatures_buffer[sensor_id][temp_buffer_index[sensor_id]] = convert_to_decimal_temp(ow_buf[0] | (ow_buf[1] << 8));
+            // Set flag for reevaluating the chilling logic
+            reevaluate_chill_logic = TRUE;
           }
         }
     }
@@ -209,22 +215,6 @@ int get_filtered_mean_temp(sensor_type sensor_id)
   return average;
 }
 
-// Activate the PWM output values on the extender outputs and reset PWM timer
-void
-activate_pwm_state(unsigned char next_pwm_state)
-{
-  pwm_state = next_pwm_state;
-  switch (pwm_state)
-    {
-  case PWM_OFF:
-      PWM_PIN = 0;
-    break;
-   case PWM_ON:
-      PWM_PIN = 1;
-    break;
-    }
-}
-
 // Must be called periodically to take care of PWM outputs
 void
 operate_PWM(void)
@@ -252,13 +242,86 @@ operate_PWM(void)
 }
 
 void
-operate_chilling_logoic(void)
+calculate_PWM_times(int actual_temp)
+{
+  char required_cooling_power;
+  signed int difference;
+
+  difference = actual_temp - target_temp;
+
+  if (difference > 20)
+    required_cooling_power = 100;
+  else if (difference > 2)
+    required_cooling_power = difference*TEMP_COEFF_A + TEMP_COEFF_B;
+  else if (difference > -2)
+    required_cooling_power = 20;
+  else { required_cooling_power = 0;}
+
+  if (required_cooling_power == 100)
+    {
+      pwm_on_time = 1600;
+      pwm_off_time = 200;
+      pwm_active = ON;
+    }
+  else if (required_cooling_power>19)
+    {
+      pwm_on_time =  required_cooling_power * POWER_COEFF_A + POWER_COEFF_B;
+      pwm_off_time = 1800 - pwm_on_time;
+      pwm_active = ON;
+    }
+  else {
+      pwm_on_time = 0;
+      pwm_off_time = 0;
+      pwm_active = OFF;
+  }
+}
+
+void
+operate_chilling_logic(void)
 {
 
-  // Setup new pwm parameters
-  pwm_on_time = 0;
-  pwm_off_time = 0;
+  int radiator_temp, room_temp;
 
+  if(reevaluate_chill_logic)
+    {
+      // reset need for evaluation
+      reevaluate_chill_logic = FALSE;
+
+      radiator_temp = get_filtered_mean_temp(RADIATOR_SENSOR);
+      room_temp = get_filtered_mean_temp(ROOM_SENSOR);
+
+      if (radiator_temp < 0 && icing_condition_counter < 0xffff)
+          icing_condition_counter++;
+        else if (icing_condition_counter > 0)
+          icing_condition_counter--;
+
+      switch (chiller_state)
+      {
+      case COOLING:
+        if (icing_condition_counter > ICING_CONDITION_THRESHOLD)
+          {
+            chiller_state = DEICING;
+            // Turn of cooling
+            pwm_on_time = 0;
+            pwm_off_time = 0;
+            pwm_active = OFF;
+            reset_timeout(DEICING_TIMER, TIMER_SEC);
+            break;
+          }
+        calculate_PWM_times(room_temp);
+        break;
+
+      case DEICING:
+        if(timeout_occured(PWM_TIMER, TIMER_SEC, DEICING_TIME_SEC))
+            {
+            // Exiting DEICING state
+            chiller_state = COOLING;
+            icing_condition_counter = 0;
+            calculate_PWM_times(room_temp);
+            }
+        break;
+      }
+    }
 }
 
 void handle_ui(void)
@@ -272,31 +335,27 @@ void handle_ui(void)
     if (ui_state == SETTING_TARGET_TEMP && timeout_occured( UI_STATE_TIMER, TIMER_MS, UI_STATE_RESET_TIME_MS))
       ui_state = ACTUAL_TEMP_DISPLAY;
     break;
+
   case PLUS_INPUT_PRESSED:
     if (ui_state == ACTUAL_TEMP_DISPLAY)
-      {
-        ui_state = SETTING_TARGET_TEMP;
-        reset_timeout( UI_STATE_TIMER , TIMER_MS);
+      ui_state = SETTING_TARGET_TEMP;
 
       // ui_state == SETTING_TARGET_TEMP
-      }else{
-        if (target_temp < MAX_TARGET_TEMP)
-          target_temp += 1;
-        reset_timeout( UI_STATE_TIMER , TIMER_MS);
-      }
+      else if (target_temp < MAX_TARGET_TEMP)
+          target_temp++;
+
+    reset_timeout( UI_STATE_TIMER , TIMER_MS);
     break;
+
   case MINUS_INPUT_PRESSED:
     if (ui_state == ACTUAL_TEMP_DISPLAY)
-      {
         ui_state = SETTING_TARGET_TEMP;
-        reset_timeout( UI_STATE_TIMER , TIMER_MS);
 
       // ui_state == SETTING_TARGET_TEMP
-      }else{
-        if (target_temp > MIN_TARGET_TEMP)
-          target_temp -= 1;
-        reset_timeout( UI_STATE_TIMER , TIMER_MS);
-      }
+      else if (target_temp > MIN_TARGET_TEMP)
+         target_temp--;
+
+    reset_timeout( UI_STATE_TIMER , TIMER_MS);
     break;
   }
 
@@ -310,7 +369,6 @@ void handle_ui(void)
        set_display_temp(target_temp);
        set_display_blink(TRUE);
     }
-
 }
 
 void
@@ -323,7 +381,7 @@ init_device(void)
     {
     j = FILTER_BUFFER_LENGTH;
     while (j--)
-      temperatures_buffer[i-1][j-1] = 0;
+      temperatures_buffer[i-1][j-1] = 1;
     }
   temp_buffer_index[RADIATOR_SENSOR] = 0;
   temp_buffer_index[ROOM_SENSOR] = 0;
@@ -355,6 +413,12 @@ init_device(void)
 
   init_ui();
 
+  // Init chill logic
+  reevaluate_chill_logic = FALSE;
+  icing_condition_counter = 0;
+  chiller_state = COOLING;
+
+  // Reset UI state
   ui_state = ACTUAL_TEMP_DISPLAY;
 }
 
@@ -370,13 +434,13 @@ main(void)
 // Start the main execution loop
   while (TRUE)
     {
-      // Operate main device functions
+      // Operate main device functions and sets reevaluate_chill_logic flag if change is detected
       operate_onewire_temp_measurement();
-
       handle_ui();
 
-      operate_chilling_logoic();
+      operate_chilling_logic();
 
       operate_PWM();
+
     }
 }

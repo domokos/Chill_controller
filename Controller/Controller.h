@@ -42,4 +42,18 @@ typedef enum {
 // define the UI timer to return to basic state
 #define UI_STATE_RESET_TIME_MS 5000
 
+// Define the chill controller states
+typedef enum {
+  COOLING,
+  DEICING } chiller_state_type;
+
+// Deicing should occur if the radiator was below zero for this amount of time in miutes (600 is 10 hours)
+#define ICING_CONDITION_THRESHOLD 600
+#define DEICING_TIME_SEC 3600
+#define TEMP_COEFF_A 4  //4.44
+#define TEMP_COEFF_B 11 //11.11
+#define POWER_COEFF_A 18 //17.5
+#define POWER_COEFF_B (-150)
+
+
 #endif /* CONTROLLER_H_ */

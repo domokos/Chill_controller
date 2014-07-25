@@ -28,10 +28,11 @@ typedef enum {
   TEMP_MEASUREMENT_TIMER=2,
   PWM_TIMER=3,
   BLINK_TIMER=4,
-  UI_STATE_TIMER=5 } timer_id_type;
+  UI_STATE_TIMER=5,
+  DEICING_TIMER=6} timer_id_type;
 
 // Define the number of timers
-#define NR_OF_TIMERS 6
+#define NR_OF_TIMERS 7
 
 // Timer types
 typedef enum {TIMER_MS, TIMER_SEC} timer_type;
