@@ -41,7 +41,7 @@ typedef enum {TIMER_MS, TIMER_SEC} timer_type;
  * Internal utility functions
  */
 
-// The timer ISR routine prototype to be included in the main file
+// The timer ISR routine prototype
 ISR(TIMER0,0);
 
 /*

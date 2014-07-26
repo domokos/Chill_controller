@@ -9,8 +9,7 @@
 
 // Module variables
 static bool timer_initialized = FALSE;
-static volatile unsigned int  ms_time_counter, sec_time_counter;
-static volatile unsigned char sec_time_counter_helper;
+static volatile unsigned int  ms_time_counter, sec_time_counter, sec_time_counter_helper;
 
 static unsigned int timer_start_times[NR_OF_TIMERS];
 
@@ -22,12 +21,15 @@ static unsigned int timer_start_times[NR_OF_TIMERS];
 // The timer ISR - set up to occur every 1 ms for a 11.0592 MHz Crystal
 ISR(TIMER0,0)
 {
+  // Stop the timer
+  TR0  = 0;
+
   // Increase timers
   ms_time_counter++;
   sec_time_counter_helper++;
 
-  // increment sec counter in every 100th cycle
-  if(sec_time_counter_helper == 100)
+  // increment sec counter in every 1000th cycle
+  if(sec_time_counter_helper == 1000)
     {
       sec_time_counter_helper = 0;
       sec_time_counter++;
@@ -46,9 +48,6 @@ ISR(TIMER0,0)
       __endasm;
     }
 
-  // Restart the timer
-  TR0  = 0;
-
 // use 34 machine cycles less to compensate for time
 // spent executing the ISR itself
 
@@ -61,6 +60,7 @@ ISR(TIMER0,0)
 #else
 #error "No or incorrect crystal speed defined."
 #endif
+  // Start the timer
   TR0  = 1;
 }
 
@@ -73,6 +73,7 @@ ISR(TIMER0,0)
 void init_timer(void)
 {
   TR0  = 0;
+  PT0  = 0;
 #ifdef  CRYSTAL_SPEED_LO
   TL0  = 0x44;    // Start from 0xfc44
   TH0  = 0xfc;
@@ -126,7 +127,6 @@ void delay_msec(unsigned int msec)
   return;
 }
 
-
 // Reset and start timeout counter
 void reset_timeout(timer_id_type id, timer_type type)
 {
@@ -178,3 +178,4 @@ bool timeout_occured(timer_id_type id, timer_type type, unsigned int timeout_lim
 {
  return get_time_elapsed(id, type) >= timeout_limit;
 }
+

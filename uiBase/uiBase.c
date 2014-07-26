@@ -20,11 +20,13 @@ static display_index_type display_index;
 
 // Blink flags
 static bool blink, is_blinking, display_off;
+static volatile bool blink_timeout_signal_flag;
 
 // 7-segment display encoder lookup table
 __code const static unsigned char digit_encoder[] =
     {
-        0xfc,0x60,0xda,0xf2,0x66,0xb6,0xbe,0xe0,0xfe,0xf6
+        0x03,0x9f,0x25,0x0d,0x99,0x49,0x41,0x1f,0x01,0x09
+//        0xfc,0x60,0xda,0xf2,0x66,0xb6,0xbe,0xe0,0xfe,0xf6
     };
 
 /*
@@ -48,6 +50,17 @@ init_ui(void)
     input_mask = input_mask << 1;
     }
   reset_segment_output();
+
+  //Setup the ISR and its priority
+  TR1  = 0;
+  PT1 = 0;
+
+  TL1  = DISPLAY_TIMER_RELOAD_HI_BYTE;
+  TH1  = DISPLAY_TIMER_RELOAD_LO_BYTE;
+
+  TMOD = (TMOD&0x0F)|0x10;    // Set Timer 1 to 16-bit
+  TR1  = 1;       // Start Timer 1
+  ET1  = 1;      // Enable Timer1 interrupt
 }
 
 input_event_type
@@ -87,7 +100,12 @@ do_ui(void)
       input_mask = input_mask << 1;
     }
 
-  display_output();
+  if (is_blinking && timeout_occured(BLINK_TIMER, TIMER_MS, BLINK_PERIOD_MS))
+    {
+      blink_timeout_signal_flag = TRUE;
+      reset_timeout(BLINK_TIMER, TIMER_MS);
+    }
+
   return return_event;
 }
 
@@ -96,60 +114,11 @@ do_ui(void)
  * DISPLAY handlers
  */
 
-// Reset the display
-static void
-reset_segment_output(void)
+// The ISR handling the display
+ISR(TIMER1,0)
 {
-  NOE_PIN = ON;
-  DS_PIN = OFF;
-  SHCP_PIN = OFF;
-  NMR_PIN = OFF;
-
-  STCP_PIN = OFF;
-  STCP_PIN = ON;
-  STCP_PIN = OFF;
-
-  NMR_PIN = ON;
-  NOE_PIN = OFF;
-
-  display_index = FIRST_DIGIT;
-  DIGIT_1_POWER_LINE = OFF;
-  DIGIT_2_POWER_LINE = OFF;
-  DIGIT_3_POWER_LINE = OFF;
-  blink = FALSE;
-  is_blinking = FALSE;
-  display_off = FALSE;
-}
-
-// Set the output to the values in the buffer position marked by index
-static void
-write_segment_output(unsigned char index)
-{
-  unsigned char mask;
-
-  // Reset the shift registers
-  NMR_PIN = OFF;
-  NMR_PIN = ON;
-
-  mask = 0x80;
-
-  // Put all bits to the serial output
-  while (mask)
-    {
-      DS_PIN = (segment_buffer[index] & mask) > 0;
-      SHCP_PIN = ON;
-      SHCP_PIN = OFF;
-
-      mask >>= 1;
-    }
-
-  STCP_PIN = ON;
-  STCP_PIN = OFF;
-}
-
-static void
-display_output(void)
-{
+  // Stop the timer
+  TR1 = 0;
   if(display_off)
     {
       // Turn off all digits
@@ -193,16 +162,15 @@ display_output(void)
       if(is_blinking)
         {
           // Blinking active - check blink timer timeout and toggle display off/reset timer if needed
-          if (timeout_occured(BLINK_TIMER, TIMER_MS, BLINK_PERIOD_MS))
+          if (blink_timeout_signal_flag)
             {
+              blink_timeout_signal_flag = FALSE;
               display_off = !display_off;
-              reset_timeout(BLINK_TIMER, TIMER_MS);
             }
         }else{
            // Blinking requested but not active - start blinking and reset timer
             display_off = TRUE;
             is_blinking = TRUE;
-            reset_timeout(BLINK_TIMER, TIMER_MS);
         }
     } else {
         if(is_blinking)
@@ -212,6 +180,80 @@ display_output(void)
             is_blinking = FALSE;
           }
     }
+
+  TL1  = DISPLAY_TIMER_RELOAD_HI_BYTE;
+  TH1  = DISPLAY_TIMER_RELOAD_LO_BYTE;
+
+  // Start the timer
+  TR1 = 1;
+}
+
+// Set the output to the values in the buffer position marked by index
+#pragma save
+#pragma nooverlay
+static void
+write_segment_output(unsigned char index) __reentrant
+{
+  unsigned char mask;
+
+  // Reset the shift registers
+  NMR_PIN = OFF;
+  NMR_PIN = ON;
+
+#ifndef REVERSE_BUFFER_OUTPUT
+  mask = 0x80;
+
+  // Put all bits to the serial output
+  while (mask)
+    {
+      DS_PIN = (segment_buffer[index] & mask) > 0;
+      SHCP_PIN = ON;
+      SHCP_PIN = OFF;
+
+      mask >>= 1;
+    }
+#else
+  mask = 0x01;
+
+  // Put all bits to the serial output
+  while(mask)
+    {
+      DS_PIN = (segment_buffer[index] & mask) > 0;
+      SHCP_PIN = ON;
+      SHCP_PIN = OFF;
+
+      mask <<= 1;
+    }
+#endif
+
+  STCP_PIN = ON;
+  STCP_PIN = OFF;
+}
+#pragma restore
+
+// Reset the display
+static void
+reset_segment_output(void)
+{
+  NOE_PIN = ON;
+  DS_PIN = OFF;
+  SHCP_PIN = OFF;
+  NMR_PIN = OFF;
+
+  STCP_PIN = OFF;
+  STCP_PIN = ON;
+  STCP_PIN = OFF;
+
+  NMR_PIN = ON;
+  NOE_PIN = OFF;
+
+  display_index = FIRST_DIGIT;
+  DIGIT_1_POWER_LINE = OFF;
+  DIGIT_2_POWER_LINE = OFF;
+  DIGIT_3_POWER_LINE = OFF;
+  blink = FALSE;
+  is_blinking = FALSE;
+  display_off = FALSE;
 }
 
 // Sets the temperature value to be displayed into the display buffer. Takes 100 times the value to be displayed
@@ -231,14 +273,14 @@ set_display_temp(signed int value)
         uns_value = value * -1;
         segment_buffer[FIRST_DIGIT] = CHAR_MINUS;
         segment_buffer[SECOND_DIGIT] = digit_encoder[(unsigned char) (uns_value / 10)];
-        segment_buffer[SECOND_DIGIT] |= DOT_MASK;
+        segment_buffer[SECOND_DIGIT] &= DOT_MASK;
         segment_buffer[THIRD_DIGIT] = digit_encoder[(unsigned char) (uns_value % 10)];
     }else if(value < 100) {
         // display x.x
         uns_value = value;
         segment_buffer[FIRST_DIGIT] = CHAR_SPACE;
         segment_buffer[SECOND_DIGIT] = digit_encoder[(unsigned char) (uns_value / 10)];
-        segment_buffer[SECOND_DIGIT] |= DOT_MASK;
+        segment_buffer[SECOND_DIGIT] &= DOT_MASK;
         segment_buffer[THIRD_DIGIT] = digit_encoder[(unsigned char) (uns_value % 10)];
     }else if(value < 1000) {
         // display xx.x
@@ -246,7 +288,7 @@ set_display_temp(signed int value)
         segment_buffer[FIRST_DIGIT] = digit_encoder[(unsigned char) (uns_value / 100)];
         uns_value = uns_value - (uns_value / 100)*100;
         segment_buffer[SECOND_DIGIT] = digit_encoder[(unsigned char) (uns_value / 10)];
-        segment_buffer[SECOND_DIGIT] |= DOT_MASK;
+        segment_buffer[SECOND_DIGIT] &= DOT_MASK;
         segment_buffer[THIRD_DIGIT] = digit_encoder[(unsigned char) (uns_value % 10)];
     }else{
         // dsiplay HI
@@ -259,5 +301,13 @@ set_display_temp(signed int value)
 void
 set_display_blink(bool blink_request)
 {
-  blink = blink_request;
+  if(blink_request != blink)
+    {
+    if(blink_request)
+      {
+       reset_timeout(BLINK_TIMER, TIMER_MS);
+       blink_timeout_signal_flag = FALSE;
+      }
+    blink = blink_request;
+    }
 }

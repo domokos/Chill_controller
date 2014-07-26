@@ -38,11 +38,14 @@ typedef enum {
     MINUS_INPUT_PRESSED=2 } input_event_type;
 
 // input event counter threshold
-#define INPUT_EVENT_COUNT_THRESHOLD 20
+#define INPUT_EVENT_COUNT_THRESHOLD 10
 
 /*
  * DISPLAY related definitions
  */
+
+// The timer ISR routine prototype
+ISR(TIMER1,0);
 
 /*
  * segment buffer specific declarations and defines.
@@ -60,10 +63,23 @@ extern const static unsigned char digit_encoder[];
 extern static unsigned char segment_buffer[];
 extern static unsigned char display_index;
 extern static bool blink, is_blinking, display_off;
+extern volatile static bool blink_timeout_signal_flag;
 
-// Digit specific definitions
+// Display specific definitions
 #define NR_OF_DIGITS 3
 #define BLINK_PERIOD_MS 600
+
+#ifdef  CRYSTAL_SPEED_LO
+  #define DISPLAY_TIMER_RELOAD_HI_BYTE 0x00
+  #define DISPLAY_TIMER_RELOAD_LO_BYTE 0xf0
+#elif defined CRYSTAL_SPEED_HI
+  #define DISPLAY_TIMER_RELOAD_HI_BYTE 0x00
+  #define DISPLAY_TIMER_RELOAD_LO_BYTE 0xe0
+#else
+  #error "No or incorrect crystal speed defined."
+#endif
+
+
 
 typedef enum {
   FIRST_DIGIT=0,
@@ -74,16 +90,17 @@ typedef enum {
 // Digit selector pins
 #define DIGIT_1_POWER_LINE P3_5
 #define DIGIT_2_POWER_LINE P3_7
-#define DIGIT_3_POWER_LINE P1_6
+#define DIGIT_3_POWER_LINE P1_5
 #define ON 1
 #define OFF 0
 
 // additional segment display values
-#define CHAR_L 0x1c
-#define CHAR_H 0x6e
-#define CHAR_MINUS 0x02
-#define CHAR_SPACE 0x00
-#define DOT_MASK 0x01
+#define CHAR_L 0xe3 // 0x1c
+#define CHAR_H 0x91 // 0x6e
+#define CHAR_MINUS 0xfd // 0x02
+#define CHAR_SPACE 0xff // 0x00
+#define DOT_MASK 0xfe //0x01
+#define REVERSE_BUFFER_OUTPUT
 
 // UI initializer
 void init_ui(void);
@@ -94,12 +111,9 @@ input_event_type do_ui(void);
 void set_display_temp(signed int value);
 void set_display_blink(bool blink_request);
 
-// The output display handler
-static void display_output(void);
-
 // Handle segments
 static void reset_segment_output(void);
-static void write_segment_output(unsigned char index);
+static void write_segment_output(unsigned char index) __reentrant;
 
 
 

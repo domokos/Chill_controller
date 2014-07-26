@@ -12,7 +12,8 @@
  */
 // Map sensors to onewire buses Sensor1 is on P1_0, Sensor2 is on P1_1
 __code const unsigned char sensor_pinmask_map[2] =
-  { 0x01, 0x02 };
+  { 0x40, // P1_6
+    0x80 }; // P1_7
 
 bool conv_complete, bus0_conv_initiated, bus1_conv_initiated, reevaluate_chill_logic;
 
@@ -124,10 +125,9 @@ read_DS18B20(sensor_type sensor_id)
       // Increment measurement index if the buffer should be filled and fill the buffer with the result of the current measurement
       if (timeout_occured(TEMP_MEASUREMENT_TIMER, TIMER_SEC, TEMP_MEASUREMENT_PERIOD_SEC))
         {
-        reset_timeout(TEMP_MEASUREMENT_TIMER, TIMER_SEC);
-
         if(measurement_succesful)
           {
+            reset_timeout(TEMP_MEASUREMENT_TIMER, TIMER_SEC);
 
             if (temp_buffer_index[sensor_id] < FILTER_BUFFER_LENGTH-1)
               temp_buffer_index[sensor_id]++;
@@ -170,7 +170,7 @@ operate_onewire_temp_measurement(void)
         // Evaluate side effect: Only read until read is succesful
         if (bus0_conv_initiated)
           {
-            read_DS18B20(0);
+            read_DS18B20(RADIATOR_SENSOR);
           }
         bus0_conv_initiated = issue_convert_on_bus(0);
         bus_to_address = 1;
@@ -180,7 +180,7 @@ operate_onewire_temp_measurement(void)
         // Evaluate side effect: Only read until read is succesful
         if (bus1_conv_initiated)
           {
-            read_DS18B20(1);
+            read_DS18B20(ROOM_SENSOR);
           }
         bus1_conv_initiated = issue_convert_on_bus(1);
         bus_to_address = 0;
@@ -189,7 +189,7 @@ operate_onewire_temp_measurement(void)
 
       // Reset the conversion timer and set the complete flag so we
       // can wait for conversion time expiry on the next bus
-      reset_timeout(TIMER_MS, TEMP_CONV_TIMER);
+      reset_timeout(TEMP_CONV_TIMER, TIMER_MS);
       conv_complete = FALSE;
     }
   else
@@ -381,7 +381,7 @@ init_device(void)
     {
     j = FILTER_BUFFER_LENGTH;
     while (j--)
-      temperatures_buffer[i-1][j-1] = 1;
+      temperatures_buffer[i][j] = -199;
     }
   temp_buffer_index[RADIATOR_SENSOR] = 0;
   temp_buffer_index[ROOM_SENSOR] = 0;
@@ -412,6 +412,7 @@ init_device(void)
   target_temp = INITIAL_TARGET_TEMP;
 
   init_ui();
+  set_display_temp(get_filtered_mean_temp(ROOM_SENSOR));
 
   // Init chill logic
   reevaluate_chill_logic = FALSE;
