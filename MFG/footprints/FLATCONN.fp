@@ -1,10 +1,10 @@
 
-Element["" "" "" "" 90.00mil 80.00mil 0.0000 0.0000 0 100 ""]
+Element["" "" "" "" 132500 137500 0 0 0 100 ""]
 (
-	Pad[-30.00mil 0.0000 20.00mil 0.0000 80.00mil 20.00mil 90.00mil "" "1" "square"]
-	ElementLine [-80.00mil 50.00mil -80.00mil -50.00mil 10.00mil]
-	ElementLine [70.00mil -50.00mil -80.00mil -50.00mil 10.00mil]
-	ElementLine [70.00mil 50.00mil 70.00mil -50.00mil 10.00mil]
-	ElementLine [-80.00mil 50.00mil 70.00mil 50.00mil 10.00mil]
+	Pad[-5000 0 5000 0 15000 2000 16000 "" "1" "square"]
+	ElementLine [-13500 -8500 -13500 8500 1000]
+	ElementLine [-13500 8500 13500 8500 1000]
+	ElementLine [13500 8500 13500 -8500 1000]
+	ElementLine [13500 -8500 -13500 -8500 1000]
 
 	)
