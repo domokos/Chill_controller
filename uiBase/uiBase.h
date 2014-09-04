@@ -52,11 +52,21 @@ ISR(TIMER1,0);
  * For segment buffer 74HC595, 8-bit parallell or serial out shift registers are used.
  */
 
+/* Breadboard layout:
 #define DS_PIN P3_0
 #define SHCP_PIN P3_1
 #define NMR_PIN P3_2
 #define STCP_PIN P3_3
 #define NOE_PIN P3_4
+*/
+
+// PCB layout:
+#define DS_PIN P3_0 // Pin 14 - 2
+#define NOE_PIN P3_1 // Pin 13 - 3
+#define STCP_PIN P3_2 // Pin 12 - 6
+#define SHCP_PIN P3_3 // Pin 11 - 7
+#define NMR_PIN P3_4  // Pin 10 - 8
+
 
 // digit encoder - encodes digits to segment bits for the buffer
 extern const static unsigned char digit_encoder[];
