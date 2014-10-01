@@ -105,11 +105,11 @@ typedef enum {
 #define OFF 0
 
 // additional segment display values
-#define CHAR_L 0xe3 // 0x1c
-#define CHAR_H 0x91 // 0x6e
-#define CHAR_MINUS 0xfd // 0x02
-#define CHAR_SPACE 0xff // 0x00
-#define DOT_MASK 0xfe //0x01
+#define CHAR_L 0x3d
+#define CHAR_H 0xa1
+#define CHAR_MINUS 0xf7
+#define CHAR_SPACE 0xff
+#define DOT_MASK 0xdf
 #define REVERSE_BUFFER_OUTPUT
 
 // UI initializer

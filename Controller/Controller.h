@@ -33,6 +33,10 @@ typedef enum {
 // PWM state type
 typedef enum {PWM_OFF, PWM_ON} pwm_states;
 
+// PWM pin values
+#define PWM_OUTPUT_OFF 0
+#define PWM_OUTPUT_ON 1
+
 // Define the states of the user interface
 typedef enum {
   ACTUAL_TEMP_DISPLAY,
@@ -50,10 +54,10 @@ typedef enum {
 // Deicing should occur if the radiator was below zero for this amount of time in miutes (600 is 10 hours)
 #define ICING_CONDITION_THRESHOLD 600
 #define DEICING_TIME_SEC 3600
-#define TEMP_COEFF_A 4  //4.44
-#define TEMP_COEFF_B 11 //11.11
-#define POWER_COEFF_A 18 //17.5
-#define POWER_COEFF_B (-150)
+#define TEMP_COEFF_A 20
+#define TEMP_COEFF_B 60
+#define POWER_COEFF_A 14
+#define POWER_COEFF_B 200
 
 
 #endif /* CONTROLLER_H_ */

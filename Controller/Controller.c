@@ -42,7 +42,7 @@ unsigned int pwm_on_time, pwm_off_time, pwm_wait_time;
 pwm_states pwm_state;
 
 // Variables holding PWM modification related flags
-bool pwm_active;
+bool pwm_active, incative_pwm_pin_value;
 
 /*
  * Functions of the device
@@ -223,18 +223,18 @@ operate_PWM(void)
     {
       if(!pwm_active)
         {
-          PWM_PIN = 0;
+          PWM_PIN = incative_pwm_pin_value;
           pwm_state = PWM_OFF;
           return;
         }
       if (pwm_state == PWM_OFF)
         {
           pwm_wait_time = pwm_on_time;
-          PWM_PIN = 1;
+          PWM_PIN = PWM_OUTPUT_ON;
           pwm_state = PWM_ON;
         } else {  // If pwm_state == PWM_ON
           pwm_wait_time = pwm_off_time;
-          PWM_PIN = 0;
+          PWM_PIN = PWM_OUTPUT_OFF;
           pwm_state = PWM_OFF;
         }
       reset_timeout(PWM_TIMER, TIMER_SEC);
@@ -249,21 +249,20 @@ calculate_PWM_times(int actual_temp)
 
   difference = actual_temp - target_temp;
 
-  if (difference > 20)
+  if (difference > 2)
     required_cooling_power = 100;
-  else if (difference > 2)
+  else if (difference > -3)
     required_cooling_power = difference*TEMP_COEFF_A + TEMP_COEFF_B;
-  else if (difference > -2)
-    required_cooling_power = 20;
   else { required_cooling_power = 0;}
 
   if (required_cooling_power == 100)
     {
-      pwm_on_time = 1600;
-      pwm_off_time = 200;
-      pwm_active = ON;
+      pwm_on_time = 0;
+      pwm_off_time = 0;
+      pwm_active = OFF;
+      incative_pwm_pin_value = PWM_OUTPUT_ON;
     }
-  else if (required_cooling_power>19)
+  else if (required_cooling_power > 0)
     {
       pwm_on_time =  required_cooling_power * POWER_COEFF_A + POWER_COEFF_B;
       pwm_off_time = 1800 - pwm_on_time;
@@ -273,6 +272,7 @@ calculate_PWM_times(int actual_temp)
       pwm_on_time = 0;
       pwm_off_time = 0;
       pwm_active = OFF;
+      incative_pwm_pin_value = PWM_OUTPUT_OFF;
   }
 }
 
@@ -305,6 +305,7 @@ operate_chilling_logic(void)
             pwm_on_time = 0;
             pwm_off_time = 0;
             pwm_active = OFF;
+            incative_pwm_pin_value = PWM_OUTPUT_OFF;
             reset_timeout(DEICING_TIMER, TIMER_SEC);
             break;
           }
@@ -406,6 +407,7 @@ init_device(void)
   pwm_off_time = 1;
   pwm_state = PWM_OFF;
   pwm_active = FALSE;
+  incative_pwm_pin_value = PWM_OUTPUT_OFF;
 
   //Set the initial target temp
 
