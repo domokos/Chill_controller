@@ -42,7 +42,7 @@ unsigned int pwm_on_time, pwm_off_time, pwm_wait_time;
 pwm_states pwm_state;
 
 // Variables holding PWM modification related flags
-bool pwm_active, incative_pwm_pin_value;
+bool pwm_active, inactive_pwm_pin_value;
 
 /*
  * Functions of the device
@@ -223,7 +223,7 @@ operate_PWM(void)
     {
       if(!pwm_active)
         {
-          PWM_PIN = incative_pwm_pin_value;
+          PWM_PIN = inactive_pwm_pin_value;
           pwm_state = PWM_OFF;
           return;
         }
@@ -260,7 +260,7 @@ calculate_PWM_times(int actual_temp)
       pwm_on_time = 0;
       pwm_off_time = 0;
       pwm_active = OFF;
-      incative_pwm_pin_value = PWM_OUTPUT_ON;
+      inactive_pwm_pin_value = PWM_OUTPUT_ON;
     }
   else if (required_cooling_power > 0)
     {
@@ -272,7 +272,7 @@ calculate_PWM_times(int actual_temp)
       pwm_on_time = 0;
       pwm_off_time = 0;
       pwm_active = OFF;
-      incative_pwm_pin_value = PWM_OUTPUT_OFF;
+      inactive_pwm_pin_value = PWM_OUTPUT_OFF;
   }
 }
 
@@ -305,7 +305,7 @@ operate_chilling_logic(void)
             pwm_on_time = 0;
             pwm_off_time = 0;
             pwm_active = OFF;
-            incative_pwm_pin_value = PWM_OUTPUT_OFF;
+            inactive_pwm_pin_value = PWM_OUTPUT_OFF;
             reset_timeout(DEICING_TIMER, TIMER_SEC);
             break;
           }
@@ -407,7 +407,7 @@ init_device(void)
   pwm_off_time = 1;
   pwm_state = PWM_OFF;
   pwm_active = FALSE;
-  incative_pwm_pin_value = PWM_OUTPUT_OFF;
+  inactive_pwm_pin_value = PWM_OUTPUT_OFF;
 
   //Set the initial target temp
 

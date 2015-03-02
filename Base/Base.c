@@ -134,9 +134,13 @@ void reset_timeout(timer_id_type id, timer_type type)
   if(!timer_initialized) init_timer();
   if(type == TIMER_MS)
     {
+      ET0 = 0;
       timer_start_times[id] = ms_time_counter;
+      ET0 = 1;
     } else {
+      ET0 = 0;
       timer_start_times[id] = sec_time_counter;
+      ET0 = 1;
     }
 }
 
