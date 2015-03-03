@@ -167,7 +167,7 @@ operate_onewire_temp_measurement(void)
       switch (bus_to_address)
         {
       case 0:
-        // Evaluate side effect: Only read until read is succesful
+        // Only read if conversoin was succesfully initiated
         if (bus0_conv_initiated)
           {
             read_DS18B20(RADIATOR_SENSOR);
@@ -177,7 +177,7 @@ operate_onewire_temp_measurement(void)
         break;
 
       case 1:
-        // Evaluate side effect: Only read until read is succesful
+        // Only read if conversoin was succesfully initiated
         if (bus1_conv_initiated)
           {
             read_DS18B20(ROOM_SENSOR);
@@ -245,33 +245,33 @@ void
 calculate_PWM_times(int actual_temp)
 {
   char required_cooling_power;
-  signed int difference;
+  signed int error;
 
-  difference = actual_temp - target_temp;
+  error = actual_temp - target_temp;
 
-  if (difference > 2)
+  if (error > 2)
     required_cooling_power = 100;
-  else if (difference > -3)
-    required_cooling_power = difference*TEMP_COEFF_A + TEMP_COEFF_B;
+  else if (error > -3)
+    required_cooling_power = error*TEMP_COEFF_A + TEMP_COEFF_B;
   else { required_cooling_power = 0;}
 
   if (required_cooling_power == 100)
     {
       pwm_on_time = 0;
       pwm_off_time = 0;
-      pwm_active = OFF;
+      pwm_active = FALSE;
       inactive_pwm_pin_value = PWM_OUTPUT_ON;
     }
   else if (required_cooling_power > 0)
     {
       pwm_on_time =  required_cooling_power * POWER_COEFF_A + POWER_COEFF_B;
       pwm_off_time = 1800 - pwm_on_time;
-      pwm_active = ON;
+      pwm_active = TRUE;
     }
   else {
       pwm_on_time = 0;
       pwm_off_time = 0;
-      pwm_active = OFF;
+      pwm_active = FALSE;
       inactive_pwm_pin_value = PWM_OUTPUT_OFF;
   }
 }
@@ -304,7 +304,7 @@ operate_chilling_logic(void)
             // Turn of cooling
             pwm_on_time = 0;
             pwm_off_time = 0;
-            pwm_active = OFF;
+            pwm_active = FALSE;
             inactive_pwm_pin_value = PWM_OUTPUT_OFF;
             reset_timeout(DEICING_TIMER, TIMER_SEC);
             break;

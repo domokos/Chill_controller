@@ -26,6 +26,8 @@ ISR(TIMER0,0)
 
   // Increase timers
   ms_time_counter++;
+  // Use a helper to avoid calling moduint from the ISR. ms_time_counter % 1000 == 0 would seem more straightforward
+  // but this would be a call to a library function from within the ISR, which we want to avoid
   sec_time_counter_helper++;
 
   // increment sec counter in every 1000th cycle
@@ -84,9 +86,10 @@ void init_timer(void)
 #error "No or incorrect crystal speed defined."
 #endif
   TMOD = (TMOD&0xF0)|0x01;    // Set Timer 0 16-bit mode
+  sec_time_counter_helper = 0; // Initialize time counters
+  ms_time_counter = 0;
   TR0  = 1;       // Start Timer 0
   ET0  = 1;      // Enable Timer0 interrupt
-  sec_time_counter_helper = 0;
   timer_initialized = TRUE;
 }
 
