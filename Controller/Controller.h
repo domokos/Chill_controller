@@ -56,8 +56,8 @@ typedef enum {
 #define DEICING_TIME_SEC 3600
 #define TEMP_COEFF_A 20
 #define TEMP_COEFF_B 60
-#define POWER_COEFF_A 14
-#define POWER_COEFF_B 200
+#define POWER_COEFF_A 2
+#define POWER_COEFF_B 50
 
 
 #endif /* CONTROLLER_H_ */

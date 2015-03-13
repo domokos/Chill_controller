@@ -265,7 +265,7 @@ calculate_PWM_times(int actual_temp)
   else if (required_cooling_power > 0)
     {
       pwm_on_time =  required_cooling_power * POWER_COEFF_A + POWER_COEFF_B;
-      pwm_off_time = 1800 - pwm_on_time;
+      pwm_off_time = 300 - pwm_on_time;
       pwm_active = TRUE;
     }
   else {
