@@ -24,15 +24,14 @@ typedef __bit bool;
 // Timeout id types
 typedef enum {
   DELAY_TIMEOUT=0,
-  TEMP_CONV_TIMER=1,
-  TEMP_MEASUREMENT_TIMER=2,
-  PWM_TIMER=3,
-  BLINK_TIMER=4,
-  UI_STATE_TIMER=5,
-  DEICING_TIMER=6} timer_id_type;
+  TEMP_MEASUREMENT_TIMER=1,
+  PWM_TIMER=2,
+  BLINK_TIMER=3,
+  UI_STATE_TIMER=4,
+  DEICING_TIMER=5} timer_id_type;
 
 // Define the number of timers
-#define NR_OF_TIMERS 7
+#define NR_OF_TIMERS 6
 
 // Timer types
 typedef enum {TIMER_MS, TIMER_SEC} timer_type;

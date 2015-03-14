@@ -54,7 +54,7 @@ ISR(TIMER0,0)
 // spent executing the ISR itself
 
 #ifdef  CRYSTAL_SPEED_LO
-  TL0  = 0x44;   // Restart from 0xfc66 (1 ms) - decimal 34 = 0xfc44
+  TL0  = 0x75;   // Restart from 0xfc66 (1 ms) - decimal 34 = 0xfc44
   TH0  = 0xfc;
 #elif defined CRYSTAL_SPEED_HI
   TL0  = 0xaa;   // Restart from 0xf8cc (1 ms) - decimal 34 = 0xf8aa
@@ -77,7 +77,7 @@ void init_timer(void)
   TR0  = 0;
   PT0  = 0;
 #ifdef  CRYSTAL_SPEED_LO
-  TL0  = 0x44;    // Start from 0xfc44
+  TL0  = 0x75;    // Start from 0xfc44
   TH0  = 0xfc;
 #elif defined CRYSTAL_SPEED_HI
   TL0  = 0xaa;    // Start from 0xf8aa
@@ -88,6 +88,7 @@ void init_timer(void)
   TMOD = (TMOD&0xF0)|0x01;    // Set Timer 0 16-bit mode
   sec_time_counter_helper = 0; // Initialize time counters
   ms_time_counter = 0;
+  sec_time_counter = 0;
   TR0  = 1;       // Start Timer 0
   ET0  = 1;      // Enable Timer0 interrupt
   timer_initialized = TRUE;
@@ -101,7 +102,7 @@ void delay_sec(unsigned int sec)
 
   reset_timeout(DELAY_TIMEOUT, TIMER_SEC);
 
-  while ( !timeout_occured(DELAY_TIMEOUT, TIMER_SEC, 1))
+  while ( !timeout_occured(DELAY_TIMEOUT, TIMER_SEC, sec))
     {
       __asm nop __endasm;
     }             // Wait delaytime
@@ -123,7 +124,7 @@ void delay_msec(unsigned int msec)
 
   reset_timeout(DELAY_TIMEOUT, TIMER_MS);
 
-  while ( !timeout_occured(DELAY_TIMEOUT, TIMER_MS, 1))
+  while ( !timeout_occured(DELAY_TIMEOUT, TIMER_MS, msec))
     {
       __asm nop __endasm;
     }             // Wait delaytime

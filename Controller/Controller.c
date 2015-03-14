@@ -104,42 +104,48 @@ convert_to_decimal_temp(int measured_bits)
 }
 
 // Read a DS18B20 sensor
-void
+bool
 read_DS18B20(sensor_type sensor_id)
 {
   unsigned char i, pinmask = sensor_pinmask_map[sensor_id];
   bool measurement_succesful;
+  // Disable timer interrupts to ensure smooth temperature reading
+  ET0 = 0;
+  ET1 = 0;
 
-  // Reset and read the temperature
-  if (onewire_reset(pinmask))
+  if (!onewire_reset(pinmask))
     {
-      onewire_write_byte(CMD_SKIP_ROM, pinmask);
-
-      onewire_write_byte(CMD_READ_SCRATCHPAD, pinmask);
-
-      for (i = 0; i < 9; i++)
-        ow_buf[i] = onewire_read_byte(pinmask);
-
-      measurement_succesful = (ow_buf[8] == calculate_onewire_crc(ow_buf, 8)) && (ow_buf[7] == 0x10);
-
-      // Increment measurement index if the buffer should be filled and fill the buffer with the result of the current measurement
-      if (timeout_occured(TEMP_MEASUREMENT_TIMER, TIMER_SEC, TEMP_MEASUREMENT_PERIOD_SEC))
-        {
-        if(measurement_succesful)
-          {
-            reset_timeout(TEMP_MEASUREMENT_TIMER, TIMER_SEC);
-
-            if (temp_buffer_index[sensor_id] < FILTER_BUFFER_LENGTH-1)
-              temp_buffer_index[sensor_id]++;
-            else
-              temp_buffer_index[sensor_id] = 0;
-
-            temperatures_buffer[sensor_id][temp_buffer_index[sensor_id]] = convert_to_decimal_temp(ow_buf[0] | (ow_buf[1] << 8));
-            // Set flag for reevaluating the chilling logic
-            reevaluate_chill_logic = TRUE;
-          }
-        }
+      // Enable timer interrupts
+      ET0 = 1;
+      ET1 = 1;
+      return FALSE;
     }
+
+  onewire_write_byte(CMD_SKIP_ROM, pinmask);
+  onewire_write_byte(CMD_READ_SCRATCHPAD, pinmask);
+
+  for (i = 0; i < 9; i++)
+    ow_buf[i] = onewire_read_byte(pinmask);
+
+  // Enable timer interrupts
+  ET0 = 1;
+  ET1 = 1;
+
+  measurement_succesful = (ow_buf[8] == calculate_onewire_crc(ow_buf, 8)) && (ow_buf[7] == 0x10);
+
+  if(measurement_succesful)
+  {
+    if (temp_buffer_index[sensor_id] < FILTER_BUFFER_LENGTH-1)
+      temp_buffer_index[sensor_id]++;
+    else
+      temp_buffer_index[sensor_id] = 0;
+
+    temperatures_buffer[sensor_id][temp_buffer_index[sensor_id]] = convert_to_decimal_temp(ow_buf[0] | (ow_buf[1] << 8));
+    // Set flag for reevaluating the chilling logic
+    reevaluate_chill_logic = TRUE;
+  }
+
+  return measurement_succesful;
 }
 
 // Return if conversion command is sent succesfully
@@ -149,12 +155,21 @@ issue_convert_on_bus(sensor_type sensor_id)
 {
   unsigned char pinmask = sensor_pinmask_map[sensor_id];
 
+  // Disable timer interrupts to ensure smooth temperature measurements
+  ET0 = 0;
+  ET1 = 0;
   if (onewire_reset(pinmask))
     {
       onewire_write_byte(CMD_SKIP_ROM, pinmask);
       onewire_write_byte(CMD_CONVERT_T, pinmask);
+      // Enable timer interrupts
+      ET0 = 1;
+      ET1 = 1;
       return TRUE;
     }
+  // Enable timer interrupts
+  ET0 = 1;
+  ET1 = 1;
   return FALSE;
 }
 
@@ -162,40 +177,35 @@ issue_convert_on_bus(sensor_type sensor_id)
 void
 operate_onewire_temp_measurement(void)
 {
-  if (conv_complete)
-    {
-      switch (bus_to_address)
-        {
-      case 0:
-        // Only read if conversoin was succesfully initiated
-        if (bus0_conv_initiated)
-          {
-            read_DS18B20(RADIATOR_SENSOR);
-          }
-        bus0_conv_initiated = issue_convert_on_bus(0);
-        bus_to_address = 1;
-        break;
 
-      case 1:
-        // Only read if conversoin was succesfully initiated
-        if (bus1_conv_initiated)
-          {
-            read_DS18B20(ROOM_SENSOR);
-          }
-        bus1_conv_initiated = issue_convert_on_bus(1);
-        bus_to_address = 0;
-        break;
+  if (timeout_occured(TEMP_MEASUREMENT_TIMER, TIMER_SEC, TEMP_MEASUREMENT_PERIOD_SEC))
+    {
+
+      while(!issue_convert_on_bus(0))
+        {
+          __asm nop __endasm;
         }
 
-      // Reset the conversion timer and set the complete flag so we
-      // can wait for conversion time expiry on the next bus
-      reset_timeout(TEMP_CONV_TIMER, TIMER_MS);
-      conv_complete = FALSE;
-    }
-  else
-    {
-      conv_complete = timeout_occured(TEMP_CONV_TIMER, TIMER_MS,
-          DS18x20_CONV_TIME / NR_OF_OW_BUSES);
+      while(!issue_convert_on_bus(1))
+      {
+        __asm nop __endasm;
+      }
+      /*
+       * wait for conversion to complete
+       */
+      delay_msec(DS18x20_CONV_TIME);
+
+      while(!read_DS18B20(RADIATOR_SENSOR))
+        {
+          __asm nop __endasm;
+        }
+
+      while(!read_DS18B20(ROOM_SENSOR))
+        {
+          __asm nop __endasm;
+        }
+
+      reset_timeout(TEMP_MEASUREMENT_TIMER, TIMER_SEC);
     }
 }
 
@@ -398,9 +408,6 @@ init_device(void)
 
   bus0_conv_initiated = bus1_conv_initiated = FALSE;
   bus_to_address = 0;
-
-  // Reset conversion timers and distribute conversion across the 2 sensors
-  reset_timeout(TEMP_CONV_TIMER, TIMER_MS);
 
   // Reset PWM
   pwm_on_time = 0;

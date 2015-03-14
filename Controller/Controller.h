@@ -17,7 +17,7 @@
 #define NR_OF_OW_BUSES 2
 #define PWM_PIN P1_2
 #define FILTER_BUFFER_LENGTH 4
-#define TEMP_MEASUREMENT_PERIOD_SEC 60
+#define TEMP_MEASUREMENT_PERIOD_SEC 30
 
 // Define the indexes of each sensor in the temperatures_buffer array
 typedef enum {
