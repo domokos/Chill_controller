@@ -18,11 +18,20 @@
 #define PWM_PIN P1_2
 #define FILTER_BUFFER_LENGTH 4
 #define TEMP_MEASUREMENT_PERIOD_SEC 30
+#define BUS_ERROR_THRESHOLD 25
 
 // Define the indexes of each sensor in the temperatures_buffer array
 typedef enum {
   RADIATOR_SENSOR=0,
   ROOM_SENSOR=1 } sensor_type;
+
+// Define the indexes of each sensor in the temperatures_buffer array
+typedef enum {
+  ERR_ROOM_SENSOR=254,
+  ERR_RADIATOR_SENSOR=253,
+  ERR_BUS_1_CONVERT=252,
+  ERR_BUS_0_CONVERT=251
+} bus_error_type;
 
 // Set initial target temperature to 5.0 C
 #define INITIAL_TARGET_TEMP 50
@@ -40,7 +49,8 @@ typedef enum {PWM_OFF, PWM_ON} pwm_states;
 // Define the states of the user interface
 typedef enum {
   ACTUAL_TEMP_DISPLAY,
-  SETTING_TARGET_TEMP
+  SETTING_TARGET_TEMP,
+  SENSOR_READ_ERROR
 } ui_state_type;
 
 // define the UI timer to return to basic state

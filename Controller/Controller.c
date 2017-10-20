@@ -33,6 +33,10 @@ ui_state_type ui_state;
 // time. This variable holds the id of the sensor to be addressed next during the cycle.
 unsigned char bus_to_address;
 
+// Variable to hold number of sensor bus errors and error information
+unsigned char no_of_bus_errors;
+bus_error_type device_in_error;
+
 /*
  * PWM specific variables
  */
@@ -181,30 +185,53 @@ operate_onewire_temp_measurement(void)
   if (timeout_occured(TEMP_MEASUREMENT_TIMER, TIMER_SEC, TEMP_MEASUREMENT_PERIOD_SEC))
     {
 
+      no_of_bus_errors = 0;
       while(!issue_convert_on_bus(0))
         {
-          __asm nop __endasm;
+    	  no_of_bus_errors++;
+          if(no_of_bus_errors == BUS_ERROR_THRESHOLD)
+          {
+              device_in_error = ERR_BUS_0_CONVERT;
+              return;
+          }
         }
 
+      no_of_bus_errors = 0;
       while(!issue_convert_on_bus(1))
       {
-        __asm nop __endasm;
+    	  no_of_bus_errors++;
+          if(no_of_bus_errors == BUS_ERROR_THRESHOLD)
+          {
+              device_in_error = ERR_BUS_1_CONVERT;
+              return;
+          }
       }
       /*
        * wait for conversion to complete
        */
       delay_msec(DS18x20_CONV_TIME);
 
+      no_of_bus_errors = 0;
       while(!read_DS18B20(RADIATOR_SENSOR))
         {
-          __asm nop __endasm;
+    	  no_of_bus_errors++;
+          if(no_of_bus_errors == BUS_ERROR_THRESHOLD)
+          {
+              device_in_error = ERR_RADIATOR_SENSOR;
+              return;
+          }
         }
 
+      no_of_bus_errors = 0;
       while(!read_DS18B20(ROOM_SENSOR))
         {
-          __asm nop __endasm;
+    	  no_of_bus_errors++;
+          if(no_of_bus_errors == BUS_ERROR_THRESHOLD)
+          {
+              device_in_error = ERR_ROOM_SENSOR;
+              return;
+          }
         }
-
       reset_timeout(TEMP_MEASUREMENT_TIMER, TIMER_SEC);
     }
 }
@@ -338,6 +365,14 @@ operate_chilling_logic(void)
 void handle_ui(void)
 {
   unsigned char input_event;
+  
+  if (no_of_bus_errors == BUS_ERROR_THRESHOLD)
+  {
+    set_display_temp(device_in_error);
+    set_display_blink(TRUE);
+    return;
+  }
+
   input_event = do_ui();
 
   switch (input_event)
@@ -430,6 +465,9 @@ init_device(void)
 
   // Reset UI state
   ui_state = ACTUAL_TEMP_DISPLAY;
+  
+  // Reset sensor error counter
+  no_of_bus_errors = 0;
 }
 
 void
@@ -445,12 +483,18 @@ main(void)
   while (TRUE)
     {
       // Operate main device functions and sets reevaluate_chill_logic flag if change is detected
-      operate_onewire_temp_measurement();
+      if (no_of_bus_errors < BUS_ERROR_THRESHOLD)
+      {
+          operate_onewire_temp_measurement();
+      }
+
       handle_ui();
 
-      operate_chilling_logic();
-
-      operate_PWM();
+      if (no_of_bus_errors < BUS_ERROR_THRESHOLD)
+      {
+          operate_chilling_logic();
+	  operate_PWM();
+      }
 
     }
 }
