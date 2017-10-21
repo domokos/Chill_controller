@@ -13,17 +13,17 @@
 static struct input_events input_line_event_buffer[NR_OF_INPUTS];
 
 // The content of the display buffer
-unsigned char segment_buffer[NR_OF_DIGITS];
+static unsigned char segment_buffer[NR_OF_DIGITS];
 
 // The index to be used in the actual display cycle
-display_index_type display_index;
+static display_index_type display_index;
 
 // Blink flags
-bool blink, is_blinking, display_off;
-volatile bool blink_timeout_signal_flag;
+static bool blink, is_blinking, display_off;
+static volatile bool blink_timeout_signal_flag;
 
 // 7-segment display encoder lookup table
-__code const unsigned char digit_encoder[] =
+__code const static unsigned char digit_encoder[] =
     {
         0x28,0xeb,0x32,0x62,0xe1,0x64,0x24,0xea,0x20,0x60
     };

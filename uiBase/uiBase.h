@@ -69,11 +69,11 @@ ISR(TIMER1,0);
 
 
 // digit encoder - encodes digits to segment bits for the buffer
-extern const unsigned char digit_encoder[];
-extern unsigned char segment_buffer[];
-extern unsigned char display_index;
-extern bool blink, is_blinking, display_off;
-extern volatile bool blink_timeout_signal_flag;
+extern const static unsigned char digit_encoder[];
+extern static unsigned char segment_buffer[];
+extern static unsigned char display_index;
+extern static bool blink, is_blinking, display_off;
+extern volatile static bool blink_timeout_signal_flag;
 
 // Display specific definitions
 #define NR_OF_DIGITS 3
