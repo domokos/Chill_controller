@@ -24,8 +24,8 @@ typedef enum {
   RADIATOR_SENSOR=0,
   ROOM_SENSOR=1 } sensor_type;
 
-// Set initial target temperature to 5.0 C
-#define INITIAL_TARGET_TEMP 50
+// Set initial target temperature to 8.5 C
+#define INITIAL_TARGET_TEMP 85
 
 #define MIN_TARGET_TEMP 5 // 0.5 C
 #define MAX_TARGET_TEMP 150 // 15.0 C
